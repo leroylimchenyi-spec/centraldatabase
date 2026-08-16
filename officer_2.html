@@ -1,0 +1,3490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Central Records System — Officer Portal</title>
+<style>
+  :root {
+    --navy: #05070B;
+    --navy-1: #0A0E14;
+    --navy-2: #0F151E;
+    --navy-3: #10161F;
+    --line: #223046;
+    --text: #C9D6E3;
+    --text-bright: #E9E4D0;
+    --muted: #6B7A8F;
+    --dim: #445468;
+    --gold: #3E6FB0;
+    --gold-2: #5C93D8;
+    --blue: #4A90D9;
+    --red: #D95C5C;
+    --green: #4FAE6B;
+    --amber: #D9A441;
+    --orange: #D97B3C;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html {
+    background: var(--navy);
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    width: 100%;
+  }
+  body {
+    margin: 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    background: var(--navy-1);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+  }
+
+  /* faint scanline texture, purely decorative */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  }
+
+  /* black/gold checker band — small nod to classic PD livery */
+  .checker-band {
+    display: flex; width: 100%; height: 6px; overflow: hidden; flex-shrink: 0;
+  }
+  .checker-band span { flex: 1 1 0; height: 100%; }
+  .checker-band span:nth-child(odd) { background: #0A0A0A; }
+  .checker-band span:nth-child(even) { background: var(--gold); }
+
+  /* ---------- LOGIN SCREEN ---------- */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background:
+      linear-gradient(rgba(5,7,11,0.94), rgba(5,7,11,0.97)),
+      repeating-linear-gradient(0deg, #0d1420 0px, #0d1420 1px, transparent 1px, transparent 24px);
+  }
+  .login-box {
+    background: var(--navy-3);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--gold);
+    border-radius: 4px;
+    padding: 36px 34px 30px 34px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 0 0 1px var(--navy-1), 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .badge-logo { margin: 0 auto 14px auto; display: block; }
+  .login-title { font-weight: 700; font-size: 18px; letter-spacing: 2px; color: var(--text-bright); }
+  .login-motto { font-size: 9px; letter-spacing: 2px; color: var(--gold); margin-top: 6px; }
+  .login-sub { font-size: 10px; letter-spacing: 3px; color: var(--blue); margin-bottom: 22px; margin-top: 6px; }
+  .field { text-align: left; margin-bottom: 14px; }
+  .field label { display: block; font-size: 10px; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 11px 12px; border-radius: 2px; border: 1px solid var(--line);
+    background: var(--navy-1); color: var(--text-bright); font-family: 'Consolas', 'Courier New', monospace; font-size: 14px; outline: none;
+    letter-spacing: 0.5px; max-width: 100%;
+  }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+  .field .subhint { font-size: 9px; color: var(--dim); margin-top: 4px; letter-spacing: 0.5px; }
+  .login-btn {
+    width: 100%; padding: 13px; margin-top: 12px; background: var(--gold); color: var(--navy-1);
+    border: none; border-radius: 2px; font-family: 'Consolas', 'Courier New', monospace; font-weight: 700;
+    font-size: 13px; letter-spacing: 2px; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .login-btn:active:not(:disabled) { transform: scale(0.98); }
+  .login-btn:hover { background: var(--gold-2); }
+  .login-btn.secondary { background: transparent; border: 1px solid var(--line); color: var(--text); }
+  .login-btn.secondary:hover { border-color: var(--gold); color: var(--gold); }
+  .login-btn:disabled { opacity: 0.4; cursor: default; }
+  .login-note { margin-top: 18px; font-size: 10px; color: var(--dim); letter-spacing: 0.5px; line-height: 1.6; }
+  .denied-msg {
+    display: none; margin-top: 16px; padding: 10px 12px; background: #2A1113; border: 1px solid #6B2328;
+    border-radius: 2px; color: var(--red); font-size: 12px; letter-spacing: 1px; font-weight: 700; text-align: center;
+  }
+  .denied-msg.show { display: block; }
+
+  /* ---------- MAIN APP ---------- */
+  #appScreen { display: none; position: relative; z-index: 1; }
+  header {
+    background: var(--navy); border-bottom: 2px solid var(--gold); padding: 16px 28px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-title { font-weight: 700; font-size: 16px; letter-spacing: 2px; color: var(--text-bright); }
+  .brand-sub { font-size: 9px; letter-spacing: 2px; color: var(--gold); margin-top: 2px; }
+  .header-right { text-align: right; }
+  .clock { font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-bottom: 6px; }
+  .online-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 5px; animation: dotpulse 1.6s infinite; }
+  @keyframes dotpulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .welcome-tag { font-size: 20px; font-weight: 700; color: var(--text-bright); letter-spacing: 0.5px; }
+  .welcome-tag .agent-name { color: var(--gold); }
+  .welcome-rank { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; margin-top: 2px; }
+  .logout-link { font-size: 10px; color: var(--muted); text-decoration: underline; cursor: pointer; margin-top: 4px; display: inline-block; letter-spacing: 1px; }
+
+  /* ---------- LIVE TICKER ---------- */
+  .live-ticker {
+    display: flex; align-items: center; gap: 8px; background: #060A0F; border-bottom: 1px solid var(--line);
+    padding: 6px 28px; font-size: 10px; letter-spacing: 1px; color: var(--muted); overflow: hidden; white-space: nowrap;
+  }
+  .live-ticker .live-badge {
+    flex-shrink: 0; color: var(--red); font-weight: 700; letter-spacing: 1.5px; display: flex; align-items: center; gap: 5px;
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: dotpulse 1s infinite; }
+  .live-ticker .live-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+
+  /* ---------- NAV TABS ---------- */
+  .tabbar {
+    display: flex; gap: 2px; background: var(--navy); padding: 0 28px; border-bottom: 1px solid #1A2434;
+    overflow-x: auto; max-width: 100%;
+  }
+  .tab-btn {
+    background: transparent; border: none; color: var(--muted); font-family: inherit; font-size: 11px;
+    letter-spacing: 1.5px; padding: 14px 14px; cursor: pointer; border-bottom: 2px solid transparent;
+    display: flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .tab-pill {
+    background: var(--red); color: var(--navy-1); font-size: 9px; font-weight: 700; border-radius: 20px;
+    padding: 1px 6px; display: none;
+  }
+  .tab-pill.show { display: inline-block; }
+
+  main { padding: 28px; max-width: 800px; margin: 0 auto; width: 100%; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .search-bar {
+    display: flex; align-items: center; gap: 10px; background: var(--navy-2); border: 1px solid var(--line); border-radius: 2px;
+    padding: 13px 16px; margin-bottom: 8px;
+  }
+  .search-bar input {
+    border: none; outline: none; background: transparent; flex: 1; min-width: 0;
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 15px; color: var(--text-bright); letter-spacing: 0.5px;
+  }
+  .hint { font-size: 11px; color: var(--dim); margin-bottom: 10px; letter-spacing: 0.5px; }
+  .invalid-msg {
+    display: none; font-size: 12px; color: var(--red); letter-spacing: 1px; margin-bottom: 16px;
+    background: #2A1113; border: 1px solid #6B2328; padding: 8px 12px; border-radius: 2px;
+  }
+  .invalid-msg.show { display: block; }
+
+  .search-history { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  .search-history .chip {
+    font-size: 10px; letter-spacing: 0.5px; color: var(--muted); background: var(--navy-2); border: 1px solid var(--line);
+    padding: 4px 9px; border-radius: 20px; cursor: pointer;
+  }
+  .search-history .chip:hover { color: var(--gold); border-color: var(--gold); }
+
+  .card { background: var(--navy-2); border: 1px solid var(--line); color: var(--text); border-radius: 3px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: none; }
+  .card.show { display: block; }
+  .card-top { padding: 24px; border-bottom: 1px solid var(--line); display: flex; gap: 16px; background: var(--navy-1); justify-content: space-between; flex-wrap: wrap; }
+  .card-top-left { display: flex; gap: 16px; }
+  .file-id { font-size: 10px; letter-spacing: 2px; color: var(--gold); font-weight: 700; margin-bottom: 12px; }
+  .avatar {
+    width: 64px; height: 64px; border-radius: 2px; background: var(--navy-3); color: var(--gold);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;
+    flex-shrink: 0; border: 1px solid var(--gold);
+  }
+  .p-name { font-weight: 700; font-size: 20px; letter-spacing: 0.5px; color: var(--text-bright); }
+  .p-role { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .card-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .flag-btn, .bolo-btn {
+    align-self: flex-end; background: transparent; border: 1px solid var(--line); color: var(--muted);
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 10px; letter-spacing: 1px;
+    padding: 6px 10px; border-radius: 2px; cursor: pointer; white-space: nowrap;
+  }
+  .flag-btn.flagged { color: var(--red); border-color: var(--red); }
+  .bolo-btn { color: var(--amber); border-color: #3A331F; }
+  .bolo-btn:hover { border-color: var(--amber); }
+  .bolo-btn:disabled { opacity: 0.45; cursor: default; color: var(--muted); border-color: var(--line); }
+
+  .card-body { padding: 20px 24px; font-size: 13px; }
+  .section-label {
+    font-size: 10px; letter-spacing: 2px; color: var(--gold); margin: 16px 0 8px 0;
+    border-bottom: 1px solid var(--line); padding-bottom: 4px;
+  }
+  .section-label:first-child { margin-top: 0; }
+  .row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; flex-wrap: wrap; }
+  .row .label { color: var(--muted); font-size: 11px; letter-spacing: 0.5px; }
+  .row .value { font-weight: 600; text-align: right; color: var(--text-bright); }
+  .row .value.classified { color: #58697D; letter-spacing: 1px; font-style: italic; }
+
+  .risk-bar-track { width: 100%; height: 7px; background: #1A2434; border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .risk-bar-fill { height: 100%; }
+
+  .classified-block {
+    font-size: 12px; color: #58697D; letter-spacing: 1px; font-style: italic; padding: 6px 0;
+  }
+  .history-list, .bullet-list { list-style: none; margin: 0; padding: 0; }
+  .history-list li, .bullet-list li {
+    padding: 7px 0; border-bottom: 1px dashed #1A2434; font-size: 12px; color: #B8C4D2; display: flex; gap: 8px;
+  }
+  .history-list li:last-child, .bullet-list li:last-child { border-bottom: none; }
+  .history-list li::before, .bullet-list li::before { content: "▸"; color: var(--gold); flex-shrink: 0; }
+  .note-text { font-size: 12px; color: #B8C4D2; line-height: 1.6; padding: 4px 0; }
+
+  .card-footer {
+    display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px;
+    background: #060A0F; color: var(--gold); font-size: 10px; letter-spacing: 2px; font-weight: 700;
+  }
+  .empty-state { color: var(--dim); font-size: 13px; padding: 40px 0; text-align: center; }
+
+  /* ---------- BOLO BOARD ---------- */
+  .panel-title { font-size: 13px; letter-spacing: 2px; color: var(--text-bright); font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .panel-sub { font-size: 11px; color: var(--muted); margin-bottom: 20px; letter-spacing: 0.5px; }
+  .live-chip {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--red); border: 1px solid #6B2328;
+    background: #2A1113; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .bolo-card {
+    background: var(--navy-2); border: 1px solid #3A2020; border-left: 3px solid var(--red); border-radius: 3px;
+    padding: 16px 18px; margin-bottom: 12px; display: flex; justify-content: space-between; gap: 14px; align-items: center; flex-wrap: wrap;
+  }
+  .bolo-card.resolved { border-left-color: #2E3D4E; opacity: 0.55; }
+  .bolo-left { display: flex; gap: 14px; align-items: center; }
+  .bolo-badge {
+    width: 40px; height: 40px; border-radius: 2px; background: #2A1113; color: var(--red); border: 1px solid #6B2328;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0;
+  }
+  .bolo-card.resolved .bolo-badge { background: var(--navy-2); color: #58697D; border-color: var(--line); }
+  .bolo-name { font-weight: 700; color: var(--text-bright); font-size: 14px; }
+  .bolo-charge { font-size: 11px; color: var(--amber); margin-top: 2px; letter-spacing: 0.5px; }
+  .bolo-meta { font-size: 10px; color: #58697D; margin-top: 4px; letter-spacing: 0.5px; }
+  .bolo-status {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px; padding: 4px 8px; border-radius: 20px;
+    background: #2A1113; color: var(--red); border: 1px solid #6B2328; animation: bolopulse 1.4s infinite;
+  }
+  .bolo-card.resolved .bolo-status { background: var(--navy-3); color: #58697D; border-color: var(--line); animation: none; }
+  @keyframes bolopulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+  .bolo-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .resolve-btn, .void-btn {
+    background: transparent; border: 1px solid var(--line); color: var(--muted); font-family: inherit; font-size: 9px;
+    letter-spacing: 1px; padding: 5px 9px; border-radius: 2px; cursor: pointer;
+  }
+  .resolve-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .void-btn { color: var(--red); border-color: #3A2020; }
+  .void-btn:hover { border-color: var(--red); }
+
+  /* ---------- BOLO ALERT FLASH ---------- */
+  #alertOverlay {
+    position: fixed; inset: 0; z-index: 999; display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 10px;
+  }
+  #alertOverlay.active { display: flex; animation: sirenflash 0.5s steps(1) infinite; }
+  @keyframes sirenflash {
+    0%, 49%   { background: rgba(217, 92, 92, 0.28); }
+    50%, 100% { background: rgba(201, 162, 39, 0.28); }
+  }
+  .alert-text {
+    font-size: 34px; font-weight: 700; letter-spacing: 6px; color: #FFFFFF;
+    text-shadow: 0 0 18px rgba(0,0,0,0.7); animation: alertpop 0.5s ease infinite alternate; text-align: center;
+  }
+  @keyframes alertpop { from { transform: scale(1); } to { transform: scale(1.06); } }
+  .alert-sub { font-size: 11px; letter-spacing: 3px; color: var(--text-bright); text-align: center; padding: 0 20px; }
+
+  /* ---------- FILTER BAR (shared) ---------- */
+  .filter-bar { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-btn {
+    background: var(--navy-2); border: 1px solid var(--line); color: var(--muted); font-family: inherit; font-size: 10px;
+    letter-spacing: 1px; padding: 6px 12px; border-radius: 20px; cursor: pointer;
+  }
+  .filter-btn.active { color: var(--gold); border-color: var(--gold); }
+
+  /* ---------- DASHBOARD / ANALYTICS ---------- */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 26px; }
+  .stat-card {
+    background: var(--navy-2); border: 1px solid var(--line); border-radius: 3px; padding: 16px 12px; text-align: center;
+  }
+  .stat-num { font-size: 24px; font-weight: 700; color: var(--gold); }
+  .stat-label { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); margin-top: 4px; }
+  .bar-row { margin-bottom: 12px; }
+  .bar-row-top { display: flex; justify-content: space-between; font-size: 11px; color: #B8C4D2; margin-bottom: 4px; letter-spacing: 0.5px; gap: 8px; }
+  .bar-track { height: 8px; background: #1A2434; border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--gold); border-radius: 2px; }
+  .bar-fill.blue { background: var(--blue); }
+  .insight-box {
+    background: var(--navy-2); border: 1px solid var(--line); border-radius: 3px; padding: 14px 16px; margin-bottom: 14px;
+    font-size: 12px; color: var(--text); line-height: 1.7;
+  }
+  .insight-box b { color: var(--gold); }
+
+  .case-row {
+    background: var(--navy-2); border: 1px solid var(--line); border-radius: 3px; padding: 14px 16px; margin-bottom: 10px;
+    cursor: pointer;
+  }
+  .case-row.just-added { animation: highlightcase 2.5s ease; }
+  @keyframes highlightcase {
+    0% { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,162,39,0.35); }
+    100% { border-color: var(--line); box-shadow: none; }
+  }
+  .case-row-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .case-title { font-weight: 700; color: var(--text-bright); font-size: 13px; }
+  .case-id { font-size: 10px; color: var(--gold); letter-spacing: 1px; margin-bottom: 3px; }
+  .case-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .case-status {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;
+    border: none; cursor: pointer; font-family: inherit;
+  }
+  .case-status.OPEN { background: #1F2E1C; color: var(--green); border: 1px solid #2E4B29; }
+  .case-status.CLOSED { background: var(--navy-3); color: var(--muted); border: 1px solid var(--line); }
+  .case-status.COLD { background: #1E2530; color: #7C90A8; border: 1px solid #2E3D4E; }
+  .case-priority {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 3px 8px; border-radius: 20px; white-space: nowrap;
+  }
+  .case-priority.LOW { background: #1F2E1C; color: var(--green); border: 1px solid #2E4B29; }
+  .case-priority.MEDIUM { background: #2A2313; color: var(--amber); border: 1px solid #3A331F; }
+  .case-priority.HIGH { background: #2E2013; color: var(--orange); border: 1px solid #3A2A1A; }
+  .case-priority.CRITICAL { background: #2A1113; color: var(--red); border: 1px solid #6B2328; }
+  .case-meta { font-size: 10px; color: #58697D; margin-top: 8px; letter-spacing: 0.5px; line-height: 1.7; }
+  .case-desc {
+    font-size: 12px; color: #B8C4D2; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #1A2434;
+    line-height: 1.6; display: none;
+  }
+  .case-row.expanded .case-desc { display: block; }
+  .case-subhead { font-size: 9px; letter-spacing: 1.5px; color: var(--gold); margin: 12px 0 6px 0; }
+  .case-note { padding: 6px 0; border-bottom: 1px dashed #1A2434; font-size: 12px; }
+  .case-note:last-child { border-bottom: none; }
+  .case-note .cn-meta { color: #58697D; font-size: 10px; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .add-note-row { display: flex; gap: 6px; margin-top: 10px; }
+  .add-note-row input {
+    flex: 1; min-width: 0; background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright);
+    font-family: inherit; font-size: 11px; padding: 8px 10px; border-radius: 2px; outline: none;
+  }
+  .add-note-row input:focus { border-color: var(--gold); }
+  .add-note-row button {
+    background: transparent; border: 1px solid var(--line); color: var(--gold); font-family: inherit; font-size: 10px;
+    letter-spacing: 1px; padding: 0 12px; border-radius: 2px; cursor: pointer; white-space: nowrap;
+  }
+  .add-note-row button:hover { border-color: var(--gold); }
+
+  .toast {
+    display: none; background: #12241A; border: 1px solid #2E4B29; color: var(--green); font-size: 11px;
+    letter-spacing: 1px; padding: 10px 14px; border-radius: 2px; margin-top: 14px;
+  }
+  .toast.show { display: block; }
+
+  /* ---------- ROSTER / PROFILE ---------- */
+  .profile-card {
+    background: var(--navy-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 3px;
+    padding: 18px 20px; margin-bottom: 24px;
+  }
+  .profile-top { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .profile-name { font-weight: 700; color: var(--text-bright); font-size: 16px; }
+  .profile-rank { font-size: 11px; color: var(--gold); letter-spacing: 1px; margin-top: 2px; }
+  .profile-meta { font-size: 10px; color: var(--muted); margin-top: 3px; letter-spacing: 0.5px; }
+  .division-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .division-row label { font-size: 10px; letter-spacing: 1px; color: var(--muted); }
+  .division-row select {
+    background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright); font-family: inherit;
+    font-size: 12px; padding: 8px 10px; border-radius: 2px; outline: none; flex: 1; min-width: 160px;
+  }
+  .division-row select:focus { border-color: var(--gold); }
+
+  .password-row { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+  .pw-row-label { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); display: block; margin-bottom: 8px; }
+  .pw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pw-grid input {
+    background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright); font-family: inherit;
+    font-size: 12px; padding: 9px 10px; border-radius: 2px; outline: none; letter-spacing: 0.5px; min-width: 0;
+    transition: border-color 0.15s ease;
+  }
+  .pw-grid input:focus { border-color: var(--gold); }
+  @media (max-width: 560px) { .pw-grid { grid-template-columns: 1fr; } }
+  .pw-save-btn { width: auto; margin-top: 10px; padding: 9px 16px; font-size: 11px; }
+  .pw-msg { display: none; font-size: 10px; letter-spacing: 0.5px; margin-top: 8px; padding: 7px 10px; border-radius: 2px; }
+  .pw-msg.show { display: block; }
+  .pw-msg.err { background: #2A1113; border: 1px solid #6B2328; color: var(--red); }
+  .pw-msg.ok { background: #10231A; border: 1px solid #285A3E; color: var(--green); }
+
+  /* ---------- LIVE SYNC WIDGET ---------- */
+  .sync-widget { position: fixed; right: 16px; bottom: 16px; z-index: 500; font-family: inherit; }
+  .sync-pill {
+    display: flex; align-items: center; gap: 7px; background: var(--navy-3); border: 1px solid var(--line);
+    border-radius: 20px; padding: 8px 14px; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    font-size: 10px; letter-spacing: 1px; color: var(--text); transition: border-color 0.15s ease;
+  }
+  .sync-pill:hover { border-color: var(--gold); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+  .sync-dot.live { background: var(--green); animation: dotpulse 1.6s infinite; }
+  .sync-dot.connecting { background: var(--amber); animation: dotpulse 0.8s infinite; }
+  .sync-dot.error { background: var(--red); }
+  .sync-panel {
+    display: none; position: absolute; right: 0; bottom: calc(100% + 10px); width: 300px;
+    background: var(--navy-3); border: 1px solid var(--line); border-top: 3px solid var(--gold); border-radius: 4px;
+    padding: 16px 16px 14px 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .sync-panel.show { display: block; }
+  .sync-panel-title { font-weight: 700; font-size: 11px; letter-spacing: 1.5px; color: var(--text-bright); margin-bottom: 8px; }
+  .sync-panel-desc { font-size: 10px; color: var(--muted); line-height: 1.6; margin-bottom: 12px; letter-spacing: 0.3px; }
+  .sync-code-row { display: flex; gap: 6px; }
+  .sync-code-row input {
+    flex: 1; min-width: 0; background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright);
+    font-family: inherit; font-size: 12px; padding: 8px 10px; border-radius: 2px; outline: none; letter-spacing: 0.5px;
+  }
+  .sync-code-row input:focus { border-color: var(--gold); }
+  .sync-panel-status { font-size: 10px; color: var(--dim); margin-top: 10px; letter-spacing: 0.5px; line-height: 1.6; }
+  .sync-panel-status.ok { color: var(--green); }
+  .sync-panel-status.err { color: var(--red); }
+  @media (max-width: 480px) { .sync-panel { width: 78vw; right: -4px; } }
+
+  .agent-card {
+    display: flex; gap: 14px; align-items: center; background: var(--navy-2); border: 1px solid var(--line);
+    border-radius: 3px; padding: 14px 16px; margin-bottom: 10px; flex-wrap: wrap;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .agent-card:hover { border-color: #2C3D52; box-shadow: 0 4px 14px rgba(0,0,0,0.35); transform: translateY(-1px); }
+  .agent-card.terminated { opacity: 0.5; }
+  .agent-card.terminated:hover { transform: none; box-shadow: none; }
+  .agent-avatar {
+    width: 44px; height: 44px; border-radius: 2px; background: var(--navy-3); color: var(--gold); border: 1px solid var(--gold);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0;
+  }
+  .agent-info-name { font-weight: 700; color: var(--text-bright); font-size: 13px; }
+  .agent-info-role { font-size: 10px; color: var(--gold); letter-spacing: 1px; margin-top: 2px; }
+  .agent-info-meta { font-size: 10px; color: #58697D; margin-top: 4px; letter-spacing: 0.5px; }
+  .agent-info-meta .term-tag { color: var(--red); font-weight: 700; }
+  .clearance-chip {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 4px 9px; border-radius: 20px;
+    background: #1E2530; color: #7C90A8; border: 1px solid #2E3D4E; white-space: nowrap; flex-shrink: 0;
+  }
+  .agent-right { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; margin-left: auto; }
+  .agent-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+  .mini-btn {
+    background: transparent; border: 1px solid var(--line); color: var(--muted); font-family: inherit; font-size: 9px;
+    letter-spacing: 0.5px; padding: 4px 8px; border-radius: 2px; cursor: pointer; white-space: nowrap;
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  }
+  .mini-btn:active { transform: scale(0.95); }
+  .mini-btn.promote:hover { border-color: var(--green); color: var(--green); }
+  .mini-btn.demote:hover { border-color: var(--amber); color: var(--amber); }
+  .mini-btn.terminate:hover { border-color: var(--red); color: var(--red); }
+  .mini-btn.reinstate:hover { border-color: var(--green); color: var(--green); }
+  .tag-chip {
+    font-size: 8px; font-weight: 700; letter-spacing: 1px; padding: 2px 6px; border-radius: 20px;
+    background: #1F2E1C; color: var(--green); border: 1px solid #2E4B29; vertical-align: middle;
+  }
+  .tag-chip.ia { background: #2A1113; color: var(--red); border-color: #6B2328; }
+  .tag-chip.chief { background: #2A2313; color: var(--amber); border-color: #3A331F; }
+  .password-reveal {
+    margin-top: 6px; font-size: 10px; letter-spacing: 1px; color: var(--gold); background: var(--navy-1);
+    border: 1px solid var(--line); padding: 4px 8px; border-radius: 2px; display: inline-block;
+  }
+  .apply-link { font-size: 10px; color: var(--blue); text-decoration: underline; cursor: pointer; letter-spacing: 0.5px; }
+  .restricted-note {
+    font-size: 11px; color: var(--dim); letter-spacing: 0.5px; padding: 30px 10px; text-align: center; line-height: 1.7;
+  }
+  .exam-q-block {
+    background: var(--navy-1); border: 1px solid var(--line); border-radius: 2px; padding: 12px 14px; margin-bottom: 10px;
+  }
+  .exam-q-block .field { margin-bottom: 8px; }
+  .exam-choice-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .exam-choice-row input[type="text"] { flex: 1; }
+  .exam-choice-row input[type="radio"] { accent-color: var(--gold); flex-shrink: 0; }
+  .remove-q-btn {
+    background: transparent; border: 1px solid #3A2020; color: var(--red); font-family: inherit; font-size: 9px;
+    letter-spacing: 1px; padding: 4px 9px; border-radius: 2px; cursor: pointer; margin-top: 4px;
+  }
+  .exam-card {
+    background: var(--navy-2); border: 1px solid var(--line); border-radius: 3px; padding: 14px 16px; margin-bottom: 12px;
+  }
+  .exam-card-title { font-weight: 700; color: var(--text-bright); font-size: 13px; }
+  .exam-card-meta { font-size: 10px; color: #58697D; margin-top: 3px; letter-spacing: 0.5px; }
+  .exam-score { font-size: 11px; color: var(--gold); letter-spacing: 1px; margin-top: 8px; }
+  .app-card {
+    background: var(--navy-2); border: 1px solid var(--line); border-left: 3px solid var(--blue); border-radius: 3px;
+    padding: 14px 16px; margin-bottom: 12px; transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+  .app-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.35); transform: translateY(-1px); }
+  .app-card.approved { border-left-color: var(--green); }
+  .app-card.denied { border-left-color: var(--red); opacity: 0.6; }
+  .app-name { font-weight: 700; color: var(--text-bright); font-size: 13px; }
+  .app-meta { font-size: 10px; color: #58697D; margin-top: 3px; letter-spacing: 0.5px; }
+  .app-reason { font-size: 12px; color: #B8C4D2; margin-top: 8px; line-height: 1.6; }
+  .app-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .issued-box {
+    margin-top: 10px; font-size: 11px; color: var(--gold); background: var(--navy-1); border: 1px solid var(--line);
+    padding: 8px 10px; border-radius: 2px; letter-spacing: 0.5px;
+  }
+  .command-select {
+    background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright); font-family: inherit;
+    font-size: 9px; padding: 4px 6px; border-radius: 2px; outline: none;
+  }
+  .command-label { font-size: 8px; letter-spacing: 1px; color: var(--gold); margin-bottom: 2px; }
+
+  /* ---------- ACTIVITY LOG ---------- */
+  .log-entry {
+    display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px dashed #1A2434; font-size: 12px; flex-wrap: wrap;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { color: var(--gold); font-size: 10px; letter-spacing: 0.5px; flex-shrink: 0; width: 64px; }
+  .log-who { color: #58697D; font-size: 10px; letter-spacing: 0.5px; flex-shrink: 0; }
+  .log-text { color: #B8C4D2; }
+  .log-locked {
+    text-align: center; padding: 40px 20px; color: var(--dim); font-size: 12px; letter-spacing: 0.5px; line-height: 1.8;
+  }
+  .log-locked .lock-icon { font-size: 26px; display: block; margin-bottom: 10px; }
+
+  /* ---------- COMMS / RADIO CHANNELS ---------- */
+  .comms-feed {
+    background: var(--navy-2); border: 1px solid var(--line); border-radius: 3px; padding: 14px 16px;
+    height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
+  }
+  .comms-empty { color: var(--dim); font-size: 12px; text-align: center; padding: 30px 0; }
+  .comms-msg { max-width: 88%; padding: 9px 12px; border-radius: 3px; background: var(--navy-3); border: 1px solid var(--line); }
+  .comms-msg.dispatch { border-left: 3px solid var(--gold); background: #17140A; }
+  .comms-msg-meta { font-size: 9px; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; display: flex; gap: 8px; }
+  .comms-msg-meta .who { color: var(--gold); font-weight: 700; }
+  .comms-msg-text { font-size: 12px; color: var(--text-bright); line-height: 1.5; }
+  .comms-voice-msg { display: flex; align-items: center; gap: 10px; }
+  .comms-play-btn {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--gold); background: transparent;
+    color: var(--gold); cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center;
+  }
+  .comms-play-btn:hover { background: var(--gold); color: var(--navy-1); }
+  .comms-play-btn.playing { background: var(--gold); color: var(--navy-1); animation: dotpulse 0.8s infinite; }
+  .comms-waveform { flex: 1; height: 18px; display: flex; align-items: center; gap: 2px; }
+  .comms-waveform span { width: 2px; background: var(--blue); border-radius: 1px; flex-shrink: 0; }
+  .comms-voice-tag { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; margin-left: auto; flex-shrink: 0; }
+  .comms-input-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .comms-input-row input[type="text"] {
+    flex: 1; min-width: 140px; background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright);
+    font-family: inherit; font-size: 13px; padding: 10px 12px; border-radius: 2px; outline: none;
+  }
+  .comms-input-row input[type="text"]:focus { border-color: var(--gold); }
+  .comms-broadcast { font-size: 9px; letter-spacing: 1px; color: var(--amber); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .comms-send-btn, .comms-voice-btn {
+    background: transparent; border: 1px solid var(--line); color: var(--text); font-family: inherit; font-size: 11px;
+    letter-spacing: 1px; padding: 10px 14px; border-radius: 2px; cursor: pointer; white-space: nowrap;
+  }
+  .comms-send-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .comms-voice-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .comms-voice-btn.recording { border-color: var(--red); color: var(--red); }
+  .channel-tag { font-size: 9px; color: #58697D; letter-spacing: 0.5px; }
+  .comms-voice-picker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .comms-voice-picker-row label { font-size: 9px; letter-spacing: 1px; color: var(--muted); }
+  .comms-voice-picker-row select {
+    background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright); font-family: inherit;
+    font-size: 11px; padding: 7px 9px; border-radius: 2px; outline: none; flex: 1; min-width: 160px; max-width: 320px;
+  }
+  .comms-voice-picker-row select:focus { border-color: var(--gold); }
+
+  /* ---------- GOODBYE SCREEN ---------- */
+  #goodbyeScreen {
+    position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 22px; background:
+      linear-gradient(rgba(5,7,11,0.96), rgba(5,7,11,0.98)),
+      repeating-linear-gradient(0deg, #0d1420 0px, #0d1420 1px, transparent 1px, transparent 24px);
+    text-align: center; padding: 20px; cursor: pointer;
+  }
+  #goodbyeScreen.show { display: flex; }
+  .goodbye-badge { opacity: 0; animation: fadein 0.6s ease forwards; }
+  .goodbye-title {
+    font-size: 24px; font-weight: 700; letter-spacing: 2px; color: var(--text-bright); opacity: 0;
+    animation: fadein 0.7s ease 0.3s forwards; padding: 0 12px;
+  }
+  .goodbye-title .agent-name { color: var(--gold); }
+  .goodbye-motto {
+    font-size: 13px; letter-spacing: 3px; color: var(--muted); min-height: 18px;
+    border-right: 2px solid var(--gold); padding-right: 4px; white-space: nowrap; overflow: hidden;
+    animation: blinkcursor 0.8s step-end infinite;
+  }
+  .goodbye-hint { font-size: 10px; color: #334154; letter-spacing: 1px; opacity: 0; animation: fadein 0.6s ease 2.6s forwards; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes blinkcursor { 50% { border-color: transparent; } }
+
+  @media (max-width: 560px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    header { padding: 14px 16px; }
+    .tabbar { padding: 0 16px; }
+    main { padding: 18px 16px; }
+    .live-ticker { padding: 6px 16px; }
+    .agent-right { margin-left: 0; align-items: flex-start; }
+    .agent-card { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <svg class="badge-logo" width="76" height="76" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <path id="arcTopLogin" d="M 26.5 41.4 A 25 25 0 0 1 73.5 41.4" fill="none"/>
+        <path id="arcBotLogin" d="M 30.3 57.2 A 21 21 0 0 0 69.7 57.2" fill="none"/>
+      </defs>
+      <polygon points="50.0,4.0 62.6,19.5 82.5,17.5 80.5,37.4 96.0,50.0 80.5,62.6 82.5,82.5 62.6,80.5 50.0,96.0 37.4,80.5 17.5,82.5 19.5,62.6 4.0,50.0 19.5,37.4 17.5,17.5 37.4,19.5" fill="#3E6FB0" stroke="#E9E4D0" stroke-width="1.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="50" r="32" fill="#05070B" stroke="#3E6FB0" stroke-width="2"/>
+      <text font-family="Consolas, monospace" font-size="7" font-weight="700" fill="#E9E4D0" letter-spacing="0.5"><textPath href="#arcTopLogin" startOffset="50%" text-anchor="middle">PORT MERIDIAN</textPath></text>
+      <text font-family="Consolas, monospace" font-size="6" font-weight="700" fill="#E9E4D0" letter-spacing="1"><textPath href="#arcBotLogin" startOffset="50%" text-anchor="middle">POLICE DEPT</textPath></text>
+      <path d="M40 51 L47 59 L62 40" stroke="#3E6FB0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <div class="login-title">CENTRAL RECORDS SYSTEM</div>
+    <div class="login-motto">TO PROTECT AND TO SERVE</div>
+    <div class="login-sub">OFFICER PORTAL ACCESS</div>
+
+    <div class="field">
+      <label for="agentName">OFFICER NAME</label>
+      <input id="agentName" type="text" placeholder="Last, First" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="badgeId">BADGE ID</label>
+      <input id="badgeId" type="text" inputmode="numeric" placeholder="Numbers only" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="loginPassword">PASSWORD</label>
+      <input id="loginPassword" type="password" placeholder="••••••••" autocomplete="off" />
+    </div>
+    <button class="login-btn" id="loginBtn">SIGN IN</button>
+    <div class="denied-msg" id="deniedMsg">ACCESS DENIED — CREDENTIALS NOT RECOGNIZED</div>
+    <div class="login-note">Fictional portal for pretend play only.<br/>Not a real records system or agency. All names, places and cases are made up.<br/><br/><span class="apply-link" id="showApplyLink">DON'T HAVE A BADGE? APPLY TO JOIN →</span></div>
+  </div>
+
+  <div class="login-box" id="applyBox" style="display:none; max-width: 420px;">
+    <div class="login-title">OFFICER APPLICATION</div>
+    <div class="login-sub">RECRUITMENT INTAKE</div>
+    <div class="field">
+      <label for="applyName">FULL NAME</label>
+      <input id="applyName" type="text" placeholder="First Last" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="applyContact">CONTACT (PHONE OR IN-GAME NAME)</label>
+      <input id="applyContact" type="text" placeholder="e.g. 555-0134" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="applyDivision">DIVISION APPLYING FOR</label>
+      <select id="applyDivision"></select>
+    </div>
+    <div class="field">
+      <label for="applyReason">WHY DO YOU WANT TO JOIN?</label>
+      <textarea id="applyReason" placeholder="A real sentence or two about why you'd be a good fit."></textarea>
+      <div class="subhint">Write a real answer — short placeholders like "test" won't be accepted.</div>
+    </div>
+    <button class="login-btn" id="submitApplyBtn">SUBMIT APPLICATION</button>
+    <button class="login-btn secondary" id="backToLoginBtn" style="margin-top:8px;">BACK TO SIGN IN</button>
+    <div class="denied-msg" id="applyDeniedMsg">PLEASE FILL OUT EVERY FIELD WITH A REAL ANSWER</div>
+    <div class="toast" id="applyToast" style="margin-top:16px;">APPLICATION SUBMITTED — A REVIEWER WILL BE IN TOUCH</div>
+  </div>
+</div>
+
+<div id="appScreen">
+  <header>
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="50.0,4.0 62.6,19.5 82.5,17.5 80.5,37.4 96.0,50.0 80.5,62.6 82.5,82.5 62.6,80.5 50.0,96.0 37.4,80.5 17.5,82.5 19.5,62.6 4.0,50.0 19.5,37.4 17.5,17.5 37.4,19.5" fill="#3E6FB0" stroke="#E9E4D0" stroke-width="1.2" stroke-linejoin="round"/>
+        <circle cx="50" cy="50" r="26" fill="#05070B" stroke="#3E6FB0" stroke-width="2.5"/>
+        <path d="M38 50 L46 59 L64 39" stroke="#3E6FB0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <div>
+        <div class="brand-title">CENTRAL RECORDS SYSTEM</div>
+        <div class="brand-sub">OFFICER PORTAL</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="clock"><span class="online-dot"></span><span id="clock">—</span></div>
+      <div class="welcome-tag">Welcome, <span class="agent-name" id="agentDisplay">—</span></div>
+      <div class="welcome-rank" id="agentRankLine">—</div>
+      <span class="logout-link" id="logoutBtn">Sign out</span>
+    </div>
+  </header>
+
+  <div class="live-ticker">
+    <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    <span class="live-text" id="liveTickerText">Department feed initializing…</span>
+  </div>
+
+  <div class="checker-band"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+
+  <div class="tabbar">
+    <button class="tab-btn active" id="tabSearchBtn" data-tab="searchPanel">🔍 SEARCH</button>
+    <button class="tab-btn" id="tabBoloBtn" data-tab="boloPanel">🚨 BOLO <span class="tab-pill" id="boloPill">0</span></button>
+    <button class="tab-btn" id="tabDashboardBtn" data-tab="dashboardPanel">📊 DASHBOARD</button>
+    <button class="tab-btn" id="tabAnalyticsBtn" data-tab="analyticsPanel">📈 ANALYTICS</button>
+    <button class="tab-btn" id="tabNewCaseBtn" data-tab="newCasePanel">🗂️ NEW CASE</button>
+    <button class="tab-btn" id="tabAgentsBtn" data-tab="agentsPanel">🎖️ ROSTER</button>
+    <button class="tab-btn" id="tabPlatesBtn" data-tab="platesPanel">🚔 RUN PLATE</button>
+    <button class="tab-btn" id="tabTrainingBtn" data-tab="trainingPanel">🎓 TRAINING</button>
+    <button class="tab-btn" id="tabApplicationsBtn" data-tab="applicationsPanel" style="display:none;">📋 APPLICATIONS <span class="tab-pill" id="applicationsPill">0</span></button>
+    <button class="tab-btn" id="tabCommandBtn" data-tab="commandPanel" style="display:none;">🛡️ COMMAND</button>
+    <button class="tab-btn" id="tabLogBtn" data-tab="logPanel">📻 ACTIVITY LOG</button>
+    <button class="tab-btn" id="tabCommsBtn" data-tab="commsPanel">📡 COMMS</button>
+  </div>
+
+  <main>
+    <!-- ===================== SEARCH PANEL ===================== -->
+    <div class="tab-panel active" id="searchPanel">
+      <div class="search-bar">
+        <input id="searchInput" type="text" placeholder="Search by full name..." autocomplete="off" />
+      </div>
+      <div class="hint">Press Enter to search. Enter a first and last name. Records are auto-generated and fictional.</div>
+      <div class="invalid-msg" id="invalidMsg">NO MATCH — ENTER A VALID FULL NAME (FIRST AND LAST)</div>
+
+      <div class="search-history" id="searchHistory"></div>
+
+      <div id="emptyState" class="empty-state">No search yet. Try typing a name above.</div>
+
+      <div id="card" class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            <div class="avatar" id="avatar">--</div>
+            <div>
+              <div class="file-id" id="fileId">RECORD</div>
+              <div class="p-name" id="pName">—</div>
+              <div class="p-role" id="pRole">—</div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="flag-btn" id="flagBtn">FLAG RECORD</button>
+            <button class="bolo-btn" id="boloOutBtn">🚨 PUT OUT BOLO</button>
+          </div>
+        </div>
+        <div class="card-body">
+
+          <div class="section-label">IDENTITY</div>
+          <div class="row"><span class="label">AGE</span><span class="value" id="pAge">—</span></div>
+          <div class="row"><span class="label">ORIGIN</span><span class="value" id="pOrigin">—</span></div>
+          <div class="row"><span class="label">STATUS</span><span class="value" id="pStatus">—</span></div>
+
+          <div class="section-label">EMPLOYMENT</div>
+          <div class="row"><span class="label">ROLE</span><span class="value" id="pEmployment">Officer</span></div>
+
+          <div class="section-label" id="contactLabel">CONTACT &amp; VEHICLE</div>
+          <div id="contactBlock"></div>
+
+          <div class="section-label">RISK ASSESSMENT</div>
+          <div class="row"><span class="label">SCORE</span><span class="value" id="pRiskLabel">—</span></div>
+          <div class="risk-bar-track"><div class="risk-bar-fill" id="pRiskBar"></div></div>
+
+          <div class="section-label" id="historyLabel">HISTORY</div>
+          <div id="historyBlock"></div>
+
+          <div class="section-label">NOTES</div>
+          <div id="noteBlock"></div>
+        </div>
+        <div class="card-footer">RECORD GENERATED</div>
+      </div>
+    </div>
+
+    <!-- ===================== BOLO PANEL ===================== -->
+    <div class="tab-panel" id="boloPanel">
+      <div class="panel-title">BE ON THE LOOKOUT <span class="live-chip"><span class="live-dot"></span>LIVE</span></div>
+      <div class="panel-sub">Bulletins issued by officers from the search tab. Fictional — for pretend play only.</div>
+      <div class="filter-bar" id="boloFilterBar">
+        <button class="filter-btn active" data-filter="ALL">ALL</button>
+        <button class="filter-btn" data-filter="ACTIVE">ACTIVE</button>
+        <button class="filter-btn" data-filter="RESOLVED">RESOLVED</button>
+      </div>
+      <div id="boloEmpty" class="empty-state">No active BOLOs. Search a record and issue one.</div>
+      <div id="boloList"></div>
+    </div>
+
+    <!-- ===================== DASHBOARD PANEL ===================== -->
+    <div class="tab-panel" id="dashboardPanel">
+      <div class="panel-title">CASE DASHBOARD</div>
+      <div class="panel-sub">Fictional case load across the district.</div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">TOTAL CASES</div></div>
+        <div class="stat-card"><div class="stat-num" id="statOpen">0</div><div class="stat-label">OPEN</div></div>
+        <div class="stat-card"><div class="stat-num" id="statClosed">0</div><div class="stat-label">CLOSED</div></div>
+        <div class="stat-card"><div class="stat-num" id="statBolo">0</div><div class="stat-label">ACTIVE BOLOS</div></div>
+      </div>
+
+      <div class="section-label">CASES BY TYPE</div>
+      <div id="barChart" style="margin-bottom: 26px; margin-top: 12px;"></div>
+
+      <div class="section-label">CASE FILES</div>
+      <div class="filter-bar" id="caseFilterBar" style="margin-top: 12px;">
+        <button class="filter-btn active" data-filter="ALL">ALL</button>
+        <button class="filter-btn" data-filter="OPEN">OPEN</button>
+        <button class="filter-btn" data-filter="CLOSED">CLOSED</button>
+        <button class="filter-btn" data-filter="COLD">COLD</button>
+      </div>
+      <div id="caseList"></div>
+    </div>
+
+    <!-- ===================== ANALYTICS PANEL ===================== -->
+    <div class="tab-panel" id="analyticsPanel">
+      <div class="panel-title">DEPARTMENT ANALYTICS</div>
+      <div class="panel-sub">Fictional metrics generated from current activity.</div>
+
+      <div class="insight-box" id="analyticsHeadline">—</div>
+
+      <div class="section-label">CASE RESOLUTION</div>
+      <div id="analyticsResolution" style="margin-bottom: 22px; margin-top: 12px;"></div>
+
+      <div class="section-label">CASELOAD BY LEAD OFFICER</div>
+      <div id="analyticsByOfficer" style="margin-bottom: 22px; margin-top: 12px;"></div>
+
+      <div class="section-label">ROSTER BY DIVISION</div>
+      <div id="analyticsByDivision" style="margin-bottom: 22px; margin-top: 12px;"></div>
+
+      <div class="section-label">RANK DISTRIBUTION</div>
+      <div id="analyticsByRank" style="margin-bottom: 22px; margin-top: 12px;"></div>
+
+      <div class="section-label">BOLO ACTIVITY</div>
+      <div id="analyticsBolo" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- ===================== NEW CASE PANEL ===================== -->
+    <div class="tab-panel" id="newCasePanel">
+      <div class="panel-title">FILE A NEW CASE</div>
+      <div class="panel-sub">Adds a fictional case file to the crime dashboard. Titles and notes must read like a real case file — no placeholder text.</div>
+
+      <div class="field">
+        <label for="caseTitleInput">CASE TITLE</label>
+        <input id="caseTitleInput" type="text" placeholder="e.g. The Quarry Street Break-In" autocomplete="off" />
+        <div class="subhint">A real, descriptive title — at least two words.</div>
+      </div>
+      <div class="field">
+        <label for="caseTypeInput">CASE TYPE</label>
+        <select id="caseTypeInput">
+          <option>Burglary</option>
+          <option>Fraud</option>
+          <option>Missing Persons</option>
+          <option>Arson</option>
+          <option>Smuggling</option>
+          <option>Unsolved Mystery</option>
+          <option>Vandalism</option>
+          <option>Trespassing</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="casePriorityInput">PRIORITY</label>
+        <select id="casePriorityInput">
+          <option>LOW</option>
+          <option selected>MEDIUM</option>
+          <option>HIGH</option>
+          <option>CRITICAL</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="caseStatusInput">STATUS</label>
+        <select id="caseStatusInput">
+          <option>OPEN</option>
+          <option>CLOSED</option>
+          <option>COLD</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="caseAgentInput">LEAD OFFICER</label>
+        <select id="caseAgentInput"></select>
+      </div>
+      <div class="field">
+        <label for="caseAssistInput">ASSISTING OFFICERS (optional)</label>
+        <input id="caseAssistInput" type="text" placeholder="Comma-separated, e.g. Chu, Okafor" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="caseLocationInput">LOCATION (optional)</label>
+        <input id="caseLocationInput" type="text" placeholder="e.g. 4th &amp; Harbor St" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="caseSuspectsInput">SUSPECTS (optional)</label>
+        <input id="caseSuspectsInput" type="text" placeholder="Comma-separated fictional names" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="caseEvidenceInput">EVIDENCE (optional)</label>
+        <input id="caseEvidenceInput" type="text" placeholder="Comma-separated, e.g. Broken lock, Muddy footprint" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="caseDescInput">CASE NOTES</label>
+        <textarea id="caseDescInput" placeholder="A real, detailed fictional summary of the case — not a placeholder."></textarea>
+        <div class="subhint">Write a real sentence or two — short placeholders like "test" won't be accepted.</div>
+      </div>
+      <button class="login-btn" id="fileCaseBtn" style="max-width: 220px;">FILE CASE</button>
+      <div class="toast" id="caseToast">CASE FILED — VIEW IT ON THE DASHBOARD</div>
+    </div>
+
+    <!-- ===================== ROSTER PANEL ===================== -->
+    <div class="tab-panel" id="agentsPanel">
+      <div class="panel-title">OFFICER ROSTER</div>
+      <div class="panel-sub">Your profile, your division, and every officer with active portal access.</div>
+
+      <div class="section-label">MY PROFILE</div>
+      <div class="profile-card" id="profileCard"></div>
+
+      <div class="section-label">DEPARTMENT ROSTER</div>
+      <div id="agentList" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- ===================== RUN PLATE PANEL ===================== -->
+    <div class="tab-panel" id="platesPanel">
+      <div class="panel-title">RUN A PLATE</div>
+      <div class="panel-sub">Look up a vehicle's registration on file. Fictional — for pretend play only.</div>
+      <div class="search-bar">
+        <input id="plateInput" type="text" placeholder="e.g. ABC-123" autocomplete="off" style="text-transform:uppercase;" />
+      </div>
+      <div class="hint">Press Enter to run the plate. Format is flexible — letters and numbers only.</div>
+      <div class="invalid-msg" id="plateInvalidMsg">ENTER A VALID PLATE (AT LEAST 4 CHARACTERS)</div>
+      <div id="plateEmpty" class="empty-state">No plate run yet. Try entering one above.</div>
+      <div id="plateCard" class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            <div class="avatar" id="plateAvatar">--</div>
+            <div>
+              <div class="file-id" id="plateFileId">VEHICLE RECORD</div>
+              <div class="p-name" id="platePlateText">—</div>
+              <div class="p-role" id="plateMakeModel">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="section-label">REGISTRATION</div>
+          <div class="row"><span class="label">STATUS</span><span class="value" id="plateRegStatus">—</span></div>
+          <div class="row"><span class="label">INSURANCE</span><span class="value" id="plateInsurance">—</span></div>
+          <div class="row"><span class="label">MODEL YEAR</span><span class="value" id="plateYear">—</span></div>
+          <div class="row"><span class="label">COLOR</span><span class="value" id="plateColor">—</span></div>
+          <div class="section-label">REGISTERED OWNER</div>
+          <div class="row"><span class="label">NAME</span><span class="value" id="plateOwner">—</span></div>
+          <div class="section-label">FLAGS</div>
+          <div class="note-text" id="plateNotes">—</div>
+        </div>
+        <div class="card-footer">RECORD GENERATED</div>
+      </div>
+    </div>
+
+    <!-- ===================== TRAINING PANEL ===================== -->
+    <div class="tab-panel" id="trainingPanel">
+      <div class="panel-title">TRAINING DIVISION</div>
+      <div class="panel-sub">Division exams and Field Training Officers. Exams for a division can only be authored by a Lieutenant+ who belongs to that division.</div>
+
+      <div class="section-label">MY DIVISION EXAMS — <span id="examDivisionLabel">—</span></div>
+      <div id="examList" style="margin-top: 12px;"></div>
+
+      <div id="examCreateSection" style="display:none;">
+        <div class="section-label">CREATE AN EXAM FOR MY DIVISION</div>
+        <div class="field">
+          <label for="examTitleInput">EXAM TITLE</label>
+          <input id="examTitleInput" type="text" placeholder="e.g. Patrol Procedures Certification" autocomplete="off" />
+        </div>
+        <div id="examQuestionsBuilder"></div>
+        <button class="login-btn secondary" id="addExamQBtn" style="max-width: 220px;">+ ADD QUESTION</button>
+        <button class="login-btn" id="publishExamBtn" style="max-width: 220px; margin-top: 10px;">PUBLISH EXAM</button>
+        <div class="denied-msg" id="examDeniedMsg">GIVE THE EXAM A TITLE, AT LEAST ONE QUESTION, TEXT FOR EACH CHOICE, AND A MARKED CORRECT ANSWER</div>
+        <div class="toast" id="examToast">EXAM PUBLISHED FOR YOUR DIVISION</div>
+      </div>
+
+      <div class="section-label" style="margin-top:26px;">FIELD TRAINING OFFICERS</div>
+      <div id="ftoList" style="margin-top: 12px;"></div>
+    </div>
+
+    <!-- ===================== APPLICATIONS PANEL ===================== -->
+    <div class="tab-panel" id="applicationsPanel">
+      <div class="panel-title">OFFICER APPLICATIONS</div>
+      <div class="panel-sub">Reviewing requires Captain+ clearance, Internal Affairs, or the Office of the Chief.</div>
+      <div class="filter-bar" id="appFilterBar">
+        <button class="filter-btn active" data-filter="PENDING">PENDING</button>
+        <button class="filter-btn" data-filter="ALL">ALL</button>
+      </div>
+      <div id="appEmpty" class="empty-state">No applications match this filter.</div>
+      <div id="appList"></div>
+    </div>
+
+    <!-- ===================== COMMAND PANEL (Internal Affairs / Office of the Chief) ===================== -->
+    <div class="tab-panel" id="commandPanel">
+      <div class="panel-title">COMMAND — INTERNAL AFFAIRS &amp; OFFICE OF THE CHIEF</div>
+      <div class="panel-sub">Elevated tools restricted to Internal Affairs, the Office of the Chief, and Commander+ (Level 7+).</div>
+
+      <div class="section-label">DEPARTMENT ORDER (BROADCAST)</div>
+      <div class="add-note-row">
+        <input id="broadcastInput" type="text" placeholder="Broadcast a department order to the live feed &amp; log..." autocomplete="off" />
+        <button id="broadcastBtn">SEND</button>
+      </div>
+      <div class="hint" id="broadcastHint">Requires the Office of the Chief or Deputy Chief I+ (Level 8+).</div>
+
+      <div class="section-label" style="margin-top:22px;">REASSIGN AN OFFICER</div>
+      <div class="hint">The only way into Internal Affairs or the Office of the Chief below Commander — a deliberate command decision, not a self-transfer.</div>
+      <div class="add-note-row">
+        <select id="reassignOfficerSelect" style="flex:1; background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright); font-family: inherit; font-size: 11px; padding: 8px 10px; border-radius: 2px;"></select>
+        <select id="reassignDivisionSelect" style="flex:1; background: var(--navy-1); border: 1px solid var(--line); color: var(--text-bright); font-family: inherit; font-size: 11px; padding: 8px 10px; border-radius: 2px;"></select>
+        <button id="reassignBtn">REASSIGN</button>
+      </div>
+
+      <div class="section-label" style="margin-top:22px;">SUSPEND / LIFT SUSPENSION</div>
+      <div id="suspendList" style="margin-top: 12px;"></div>
+
+      <div class="section-label" style="margin-top:22px;">INTERNAL AFFAIRS INVESTIGATIONS</div>
+      <div class="field">
+        <label for="iaTargetSelect">SUBJECT OFFICER</label>
+        <select id="iaTargetSelect"></select>
+      </div>
+      <div class="field">
+        <label for="iaNotesInput">INVESTIGATION SUMMARY</label>
+        <textarea id="iaNotesInput" placeholder="A real summary of the complaint or concern being investigated."></textarea>
+      </div>
+      <button class="login-btn" id="openIaBtn" style="max-width: 220px;">OPEN INVESTIGATION</button>
+      <div class="denied-msg" id="iaDeniedMsg">SELECT A SUBJECT AND WRITE A REAL SUMMARY</div>
+      <div id="iaList" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- ===================== ACTIVITY LOG PANEL ===================== -->
+    <div class="tab-panel" id="logPanel">
+      <div class="panel-title">ACTIVITY LOG <span class="live-chip"><span class="live-dot"></span>LIVE</span></div>
+      <div class="panel-sub">Your own log is always visible. The full department log requires Lieutenant (Level 4) clearance or higher.</div>
+      <div class="filter-bar" id="logFilterBar">
+        <button class="filter-btn active" data-filter="MINE">MY LOG</button>
+        <button class="filter-btn" data-filter="ALL">DEPARTMENT LOG (ALL)</button>
+      </div>
+      <div id="logEmpty" class="empty-state">No activity yet.</div>
+      <div id="logLocked" class="log-locked" style="display:none;">
+        <span class="lock-icon">🔒</span>
+        DEPARTMENT-WIDE LOG REQUIRES LIEUTENANT (LEVEL 4) CLEARANCE OR HIGHER.<br/>
+        <span id="logLockedLevel"></span>
+      </div>
+      <div id="logList"></div>
+    </div>
+
+    <!-- ===================== COMMS PANEL ===================== -->
+    <div class="tab-panel" id="commsPanel">
+      <div class="panel-title">RADIO COMMS <span class="live-chip"><span class="live-dot"></span>LIVE</span></div>
+      <div class="panel-sub">Post text or voice messages on a channel. DISPATCH can broadcast to every channel at once.</div>
+      <div class="filter-bar" id="commsChannelBar"></div>
+      <div class="comms-voice-picker-row">
+        <label for="commsVoiceSelect">PLAYBACK VOICE</label>
+        <select id="commsVoiceSelect"></select>
+      </div>
+      <div class="comms-feed" id="commsFeed"></div>
+      <div class="comms-input-row">
+        <input id="commsInput" type="text" placeholder="Type a message..." autocomplete="off" />
+        <label class="comms-broadcast" id="commsBroadcastWrap" style="display:none;">
+          <input type="checkbox" id="commsBroadcast" /> ALL CH
+        </label>
+        <button class="comms-send-btn" id="commsSendBtn" title="Send text message">SEND</button>
+        <button class="comms-voice-btn" id="commsVoiceBtn" title="Send voice message">🎙 VOICE</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="alertOverlay">
+  <div class="alert-text">⚠ BOLO ISSUED ⚠</div>
+  <div class="alert-sub" id="alertSub">BROADCASTING TO ALL UNITS</div>
+</div>
+
+<div class="sync-widget" id="syncWidget">
+  <div class="sync-panel" id="syncPanel">
+    <div class="sync-panel-title">🔄 LIVE DEVICE SYNC</div>
+    <div class="sync-panel-desc">Every device using the same sync code shares one live records feed — new applications, promotions, plate runs, and password changes all appear on the other devices automatically. Copy this code to your other devices, or paste one here to join it.</div>
+    <div class="sync-code-row">
+      <input type="text" id="syncCodeInput" placeholder="sync code" autocomplete="off" spellcheck="false" />
+      <button class="mini-btn" id="syncCodeCopyBtn">COPY</button>
+    </div>
+    <button class="login-btn secondary" id="syncCodeConnectBtn" style="margin-top:8px;">CONNECT TO THIS CODE</button>
+    <div class="sync-panel-status" id="syncPanelStatus">—</div>
+  </div>
+  <div class="sync-pill" id="syncPill">
+    <span class="sync-dot" id="syncDot"></span><span id="syncStatusText">SYNC</span>
+  </div>
+</div>
+
+<div id="goodbyeScreen">
+  <svg class="goodbye-badge" width="68" height="68" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <path id="arcTopBye" d="M 26.5 41.4 A 25 25 0 0 1 73.5 41.4" fill="none"/>
+      <path id="arcBotBye" d="M 30.3 57.2 A 21 21 0 0 0 69.7 57.2" fill="none"/>
+    </defs>
+    <polygon points="50.0,4.0 62.6,19.5 82.5,17.5 80.5,37.4 96.0,50.0 80.5,62.6 82.5,82.5 62.6,80.5 50.0,96.0 37.4,80.5 17.5,82.5 19.5,62.6 4.0,50.0 19.5,37.4 17.5,17.5 37.4,19.5" fill="#3E6FB0" stroke="#E9E4D0" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="50" cy="50" r="32" fill="#05070B" stroke="#3E6FB0" stroke-width="2"/>
+    <text font-family="Consolas, monospace" font-size="7" font-weight="700" fill="#E9E4D0" letter-spacing="0.5"><textPath href="#arcTopBye" startOffset="50%" text-anchor="middle">PORT MERIDIAN</textPath></text>
+    <text font-family="Consolas, monospace" font-size="6" font-weight="700" fill="#E9E4D0" letter-spacing="1"><textPath href="#arcBotBye" startOffset="50%" text-anchor="middle">POLICE DEPT</textPath></text>
+    <path d="M40 51 L47 59 L62 40" stroke="#3E6FB0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </svg>
+  <div class="goodbye-title">GOODBYE, OFFICER <span class="agent-name" id="goodbyeAgent">—</span></div>
+  <div class="goodbye-motto" id="goodbyeMotto"></div>
+  <div class="goodbye-hint">click anywhere to return to login</div>
+</div>
+
+<script>
+  // ================================================================
+  // RANKS
+  // ================================================================
+  const RANKS = [
+    { level: 1,  title: "Police Officer I" },
+    { level: 2,  title: "Police Officer II / Detective" },
+    { level: 3,  title: "Sergeant" },
+    { level: 4,  title: "Lieutenant" },
+    { level: 5,  title: "Captain" },
+    { level: 6,  title: "Commander" },
+    { level: 7,  title: "Deputy Chief III" },
+    { level: 8,  title: "Deputy Chief II" },
+    { level: 9,  title: "Deputy Chief I" },
+    { level: 10, title: "Assistant Chief" }
+  ];
+  function rankTitle(level) {
+    const clamped = Math.max(1, Math.min(10, level));
+    const r = RANKS.find(r => r.level === clamped);
+    return r ? r.title : ("Level " + clamped);
+  }
+
+  const DIVISIONS = [
+    "Patrol Division", "Robbery-Homicide Division", "Narcotics Division", "Gang Enforcement Division",
+    "Fraud & Financial Crimes Division", "Missing Persons Unit", "Arson & Explosives Unit",
+    "Cold Case Unit", "Internal Affairs Division", "SWAT / Tactical Unit", "Traffic Division",
+    "Detective Bureau", "Training Division", "Office of the Chief"
+  ];
+
+  // Divisions with elevated authority — officers cannot just self-transfer into these from
+  // their own profile. Only Commander+ (Level 7+) or someone already inside can hold them;
+  // anyone else must be formally reassigned through the Command tab by Captain+/IA/Chief's Office.
+  const RESTRICTED_DIVISIONS = ["Internal Affairs Division", "Office of the Chief"];
+  function selectableDivisionsFor(actor) {
+    if (!actor) return DIVISIONS.slice();
+    return DIVISIONS.filter(d => !RESTRICTED_DIVISIONS.includes(d) || d === actor.division || actor.clearance >= 7);
+  }
+
+  // ================================================================
+  // OFFICER ROSTER (fictional, hardcoded base data)
+  // ================================================================
+  const OFFICERS_BASE = [
+    { name: "reyes, marcus",     badge: "4471",   password: "4471pd",   clearance: 2,  division: "Robbery-Homicide Division",           specialty: "Burglary & Theft",          status: "ACTIVE" },
+    { name: "bennett, sarah",    badge: "2289",   password: "2289pd",   clearance: 2,  division: "Fraud & Financial Crimes Division",    specialty: "Fraud Investigations",      status: "ACTIVE" },
+    { name: "okafor, daniel",    badge: "5502",   password: "5502pd",   clearance: 1,  division: "Narcotics Division",                   specialty: "Smuggling & Trafficking",   status: "ACTIVE" },
+    { name: "chu, elena",        badge: "3317",   password: "3317pd",   clearance: 2,  division: "Cold Case Unit",                       specialty: "Cold Cases",                status: "ACTIVE" },
+    { name: "lim, leroy",        badge: "7734",   password: "7734pd",   clearance: 3,  division: "Arson & Explosives Unit",              specialty: "Arson & Explosives",        status: "ACTIVE" },
+    { name: "tem, alaynna",      badge: "121314", password: "121314pd", clearance: 1,  division: "Missing Persons Unit",                 specialty: "Missing Persons",           status: "ACTIVE" },
+    { name: "tem, alayssa",      badge: "150215", password: "150215pd", clearance: 1,  division: "Missing Persons Unit",                 specialty: "Missing Persons",           status: "ACTIVE" },
+    { name: "voss, patricia",    badge: "6650",   password: "6650pd",   clearance: 3,  division: "Internal Affairs Division",            specialty: "Internal Affairs",          status: "ACTIVE" },
+    { name: "harrington, william", badge: "1001", password: "1001pd",  clearance: 10, division: "Office of the Chief",                  specialty: "Command Staff",             status: "ACTIVE" },
+    { name: "dispatch, central", badge: "0000",   password: "dispatch1", clearance: 5, division: "Dispatch Center", specialty: "Central Dispatch", status: "ACTIVE", isDispatch: true }
+  ];
+
+  const OFFICER_STATE_KEY = "crs_officer_overrides_v1";
+  function loadOfficerOverrides() {
+    try { return JSON.parse(localStorage.getItem(OFFICER_STATE_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveOfficerOverrides() {
+    try { localStorage.setItem(OFFICER_STATE_KEY, JSON.stringify(officerOverrides)); } catch (e) {}
+    rebuildOfficers();
+    if (typeof currentOfficer !== "undefined" && currentOfficer) {
+      const refreshed = OFFICERS.find(o => o.badge === currentOfficer.badge);
+      if (refreshed) currentOfficer = refreshed;
+    }
+    queueSync();
+  }
+  let officerOverrides = loadOfficerOverrides();
+
+  // ---------- officers hired on through the Applications pipeline (persisted separately
+  // from the hardcoded roster so approvals survive a reload) ----------
+  const NEW_OFFICERS_KEY = "crs_new_officers_v1";
+  function loadNewOfficers() {
+    try { return JSON.parse(localStorage.getItem(NEW_OFFICERS_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveNewOfficers() {
+    try { localStorage.setItem(NEW_OFFICERS_KEY, JSON.stringify(newOfficers)); } catch (e) {}
+    rebuildOfficers();
+    queueSync();
+  }
+  let newOfficers = loadNewOfficers();
+
+  // ---------- cross-referenced person/vehicle registry (search <-> plate lookups), synced live ----------
+  const PERSON_REGISTRY_KEY = "crs_person_registry_v1";
+  const PLATE_REGISTRY_KEY = "crs_plate_registry_v1";
+  function loadPersonRegistry() {
+    try { return JSON.parse(localStorage.getItem(PERSON_REGISTRY_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function loadPlateRegistry() {
+    try { return JSON.parse(localStorage.getItem(PLATE_REGISTRY_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveRegistries() {
+    try {
+      localStorage.setItem(PERSON_REGISTRY_KEY, JSON.stringify(personRegistry));
+      localStorage.setItem(PLATE_REGISTRY_KEY, JSON.stringify(plateRegistry));
+    } catch (e) {}
+    queueSync();
+  }
+  let personRegistry = loadPersonRegistry();
+  let plateRegistry = loadPlateRegistry();
+
+  const OFFICERS = [];
+  function rebuildOfficers() {
+    const merged = OFFICERS_BASE.concat(newOfficers).map(o => Object.assign({}, o, officerOverrides[o.badge] || {}));
+    OFFICERS.length = 0;
+    merged.forEach(o => OFFICERS.push(o));
+  }
+  rebuildOfficers();
+  function persistOfficer(o) {
+    officerOverrides[o.badge] = { clearance: o.clearance, division: o.division, status: o.status, fto: !!o.fto, password: o.password };
+    saveOfficerOverrides();
+  }
+  function generateNewBadge() {
+    let badge;
+    do { badge = String(1000 + Math.floor(Math.random() * 8999)); }
+    while (OFFICERS.some(o => o.badge === badge));
+    return badge;
+  }
+
+  function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+  function seededRandom(seed) {
+    let s = seed % 2147483647;
+    if (s <= 0) s += 2147483646;
+    return function () {
+      s = (s * 16807) % 2147483647;
+      return (s - 1) / 2147483646;
+    };
+  }
+  function pick(rand, arr) { return arr[Math.floor(rand() * arr.length)]; }
+  function pickN(rand, arr, n) {
+    const copy = arr.slice();
+    const out = [];
+    for (let i = 0; i < n && copy.length; i++) {
+      out.push(copy.splice(Math.floor(rand() * copy.length), 1)[0]);
+    }
+    return out;
+  }
+  function initials(name) {
+    return name.trim().split(/\s+/).map(p => p[0]).join("").slice(0, 2).toUpperCase();
+  }
+  function properCase(name) {
+    return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+  }
+  function officerDisplayName(o) {
+    return properCase(o.name.split(",").map(p => p.trim()).reverse().join(" "));
+  }
+
+  // ---------- name validation: real-looking full names only ----------
+  const GIBBERISH_BLOCKLIST = ["aha", "asdf", "test", "abc", "xyz", "hello", "hi", "blah", "lol", "qwerty", "name", "aaa", "idk", "na", "none", "n a", "sample", "placeholder", "foo", "bar", "case", "notes"];
+  function isValidFullName(raw) {
+    const words = raw.trim().split(/\s+/).filter(Boolean);
+    if (words.length < 2) return false;
+    for (const w of words) {
+      if (!/^[A-Za'-]{2,20}$/i.test(w)) return false;
+      if (/(.)\1{2,}/i.test(w)) return false;
+      if (GIBBERISH_BLOCKLIST.includes(w.toLowerCase())) return false;
+    }
+    return true;
+  }
+
+  // ---------- realistic free-text validation, used for case titles/notes ----------
+  function isRealisticText(raw, minWords, minLen) {
+    const trimmed = (raw || "").trim();
+    if (trimmed.length < minLen) return false;
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length < minWords) return false;
+    let realish = 0;
+    for (const w of words) {
+      const clean = w.replace(/[^a-zA-Z']/g, "");
+      if (clean.length < 2) continue;
+      if (/(.)\1{3,}/i.test(clean)) continue;
+      if (GIBBERISH_BLOCKLIST.includes(clean.toLowerCase())) continue;
+      realish++;
+    }
+    return realish >= Math.max(1, Math.ceil(minWords / 2));
+  }
+
+  // normalize any name (any word order / comma) into a sorted key of lowercase words
+  function nameKey(raw) {
+    return raw.toLowerCase().replace(/,/g, " ").trim().split(/\s+/).filter(Boolean).sort().join(" ");
+  }
+  function findOfficerByName(raw) {
+    const key = nameKey(raw);
+    return OFFICERS.find(o => nameKey(o.name) === key) || null;
+  }
+  function isOfficerName(raw) {
+    return !!findOfficerByName(raw);
+  }
+
+  // ================================================================
+  // PERMISSIONS
+  // ================================================================
+  function canManageRoster(actor) { return actor && actor.clearance >= 3; }
+  function canManageTarget(actor, target) {
+    if (!actor || !target) return false;
+    if (target.badge === actor.badge) return false;
+    if (actor.clearance >= 10) return target.clearance < 10;
+    if (actor.clearance >= 3) return target.clearance < actor.clearance;
+    return false;
+  }
+  function canCommandOverride(actor) { return actor && actor.clearance >= 10; }
+  function canViewGlobalLog(actor) { return actor && actor.clearance >= 4; }
+  function canViewOfficerClassified(actor) { return actor && (actor.clearance >= 3 || isIA(actor) || isChiefOffice(actor)); }
+  function canViewOfficerNotes(actor) { return actor && (actor.clearance >= 2 || isIA(actor) || isChiefOffice(actor)); }
+  function canVoidBolo(actor) { return actor && (actor.clearance >= 3 || isIA(actor) || isChiefOffice(actor)); }
+
+  // ---------- Internal Affairs / Office of the Chief / Training Division ----------
+  function isIA(o) { return !!o && o.division === "Internal Affairs Division"; }
+  function isChiefOffice(o) { return !!o && o.division === "Office of the Chief"; }
+  function isTrainingDiv(o) { return !!o && o.division === "Training Division"; }
+
+  // Command tab: Internal Affairs, Office of the Chief, or Commander+ (Level 7+). This is the
+  // gate that keeps "not everyone" from switching into IA/Chief-level tools.
+  function canAccessCommandTools(actor) { return !!actor && (isIA(actor) || isChiefOffice(actor) || actor.clearance >= 7); }
+  function canSuspendOfficer(actor, target) {
+    return canAccessCommandTools(actor) && actor && target && actor.badge !== target.badge && target.clearance < 10;
+  }
+  function canReassignAnyDivision(actor) { return canAccessCommandTools(actor); }
+  function canOpenIAInvestigation(actor) { return canAccessCommandTools(actor); }
+  function canBroadcastOrder(actor) { return !!actor && (isChiefOffice(actor) || actor.clearance >= 8); }
+
+  // Captains+ (Level 5+), IA, or Office of the Chief can view other officers' passwords.
+  function canViewPasswords(actor) { return !!actor && (actor.clearance >= 5 || isIA(actor) || isChiefOffice(actor)); }
+
+  // Reviewing officer applications: Captain+, IA, or Office of the Chief.
+  function canReviewApplications(actor) { return !!actor && (actor.clearance >= 5 || isIA(actor) || isChiefOffice(actor)); }
+
+  // Division exams: only Lieutenant+ (Level 4+) of that exact division can author an exam for it.
+  function canCreateExamFor(actor, division) { return !!actor && actor.clearance >= 4 && actor.division === division; }
+
+  // Field Training Officer designation: Captain+, or a Lieutenant+ already inside Training Division.
+  function canDesignateFTO(actor) { return !!actor && (actor.clearance >= 5 || (isTrainingDiv(actor) && actor.clearance >= 4)); }
+
+  const OCCUPATIONS_TITLE = "Officer";
+
+  const ORIGINS = ["Port Meridian", "Fernbrook Hills", "Old Harbor", "Rivergate",
+    "Cobbleton", "Silverpine", "Amberwick", "Thistledown", "Copperfield", "Larkspur Bay"];
+
+  const NOTES = [
+    "No prior incidents on record.",
+    "First contact with this system — no history.",
+    "Cooperative during check.",
+    "Paperwork slightly out of date, currently under routine review.",
+    "Has been through this system several times before.",
+    "No irregularities found during the check."
+  ];
+
+  const HISTORY_EVENTS = [
+    "Routine check at Old Harbor checkpoint — no issues.",
+    "Questioned regarding a noise complaint — released.",
+    "Brief stop during a records audit — cleared.",
+    "Involved in a minor dispute at Cobbleton Market — resolved.",
+    "Reported a missing personal item — case closed.",
+    "Witness interview for an unrelated case — cooperative.",
+    "Flagged for a paperwork mismatch — corrected same day.",
+    "Attended a community check-in — no findings."
+  ];
+
+  const STATUSES = [
+    { label: "CLEARED", color: "#4FAE6B" },
+    { label: "CLEARED", color: "#4FAE6B" },
+    { label: "CLEARED", color: "#4FAE6B" },
+    { label: "PENDING REVIEW", color: "#D9A441" },
+    { label: "NOT ON FILE", color: "#D95C5C" },
+  ];
+
+  const VEHICLES = ["Teal Hatchback", "Grey Sedan", "Rustbelt Pickup", "Faded Blue Wagon",
+    "Black SUV", "Unmarked White Van", "Vintage Motorcycle", "Green Compact", "No vehicle on file"];
+  const STREETS = ["Elm", "Harbor", "Cinder", "Mill", "Fog", "Birch", "Quarry", "Lantern", "Cobble", "Ash"];
+
+  function generatePhone(rand) {
+    return "555-" + (1000 + Math.floor(rand() * 8999));
+  }
+  function generatePlate(rand) {
+    const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    let plate = "";
+    for (let i = 0; i < 3; i++) plate += letters[Math.floor(rand() * letters.length)];
+    plate += "-" + (100 + Math.floor(rand() * 899));
+    return plate;
+  }
+  function generateAddress(rand, origin) {
+    return (100 + Math.floor(rand() * 899)) + " " + pick(rand, STREETS) + " St, " + origin;
+  }
+
+  function generatePerson(name) {
+    const seed = hashString(name.toLowerCase().trim());
+    const rand = seededRandom(seed);
+    const id = "R-" + (100000 + Math.floor(rand() * 899999));
+    const age = 18 + Math.floor(rand() * 55);
+    const origin = pick(rand, ORIGINS);
+    const note = pick(rand, NOTES);
+    const status = pick(rand, STATUSES);
+    const risk = Math.floor(rand() * 100);
+    const phone = generatePhone(rand);
+    const vehicle = pick(rand, VEHICLES);
+    const plate = generatePlate(rand);
+    const address = generateAddress(rand, origin);
+    const historyCount = 1 + Math.floor(rand() * 3);
+    const history = pickN(rand, HISTORY_EVENTS, historyCount);
+    const officerRecord = findOfficerByName(name);
+    return { id, name, age, origin, note, status, risk, phone, vehicle, plate, address, history, isOfficer: !!officerRecord, officerRecord };
+  }
+
+  // ---------- shared records registry — keeps "search a name" and "run a plate" pointing at
+  // the same underlying person/vehicle, and syncs across every signed-in device ----------
+  function normPlate(raw) { return (raw || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase(); }
+  function getOrCreatePersonByName(name) {
+    const key = nameKey(name);
+    let p = personRegistry[key];
+    if (!p) {
+      p = generatePerson(name);
+      personRegistry[key] = p;
+      plateRegistry[normPlate(p.plate)] = key;
+      saveRegistries();
+    }
+    const officerRecord = findOfficerByName(name);
+    return Object.assign({}, p, { isOfficer: !!officerRecord, officerRecord });
+  }
+  function getPersonByPlate(plateRaw) {
+    const key = plateRegistry[normPlate(plateRaw)];
+    if (!key) return null;
+    const stored = personRegistry[key];
+    if (!stored) return null;
+    return getOrCreatePersonByName(stored.name);
+  }
+  function registerVehicleOwnerAsPerson(v) {
+    const key = nameKey(v.owner);
+    if (personRegistry[key]) return;
+    const p = generatePerson(v.owner);
+    p.plate = v.plate;
+    p.vehicle = v.year + " " + v.makeModel;
+    personRegistry[key] = p;
+    plateRegistry[normPlate(v.plate)] = key;
+    saveRegistries();
+  }
+
+  function riskColor(score) {
+    if (score < 34) return "#4FAE6B";
+    if (score < 67) return "#D9A441";
+    return "#D95C5C";
+  }
+  function riskLabel(score) {
+    if (score < 34) return score + " — LOW";
+    if (score < 67) return score + " — MODERATE";
+    return score + " — ELEVATED";
+  }
+
+  const searchInput = document.getElementById("searchInput");
+  const card = document.getElementById("card");
+  const emptyState = document.getElementById("emptyState");
+  const invalidMsg = document.getElementById("invalidMsg");
+  const searchHistoryEl = document.getElementById("searchHistory");
+  const flagBtn = document.getElementById("flagBtn");
+  const boloOutBtn = document.getElementById("boloOutBtn");
+  const contactBlock = document.getElementById("contactBlock");
+  const contactLabel = document.getElementById("contactLabel");
+  const historyBlock = document.getElementById("historyBlock");
+  const historyLabel = document.getElementById("historyLabel");
+  const noteBlock = document.getElementById("noteBlock");
+  let history = [];
+  let currentPerson = null;
+  let currentOfficer = null;
+
+  function renderPerson(p) {
+    currentPerson = p;
+    document.getElementById("fileId").textContent = "RECORD — " + p.id;
+    document.getElementById("avatar").textContent = initials(p.name);
+    document.getElementById("pName").textContent = properCase(p.name);
+
+    if (p.isOfficer && p.officerRecord) {
+      document.getElementById("pRole").textContent = rankTitle(p.officerRecord.clearance) + " — " + p.officerRecord.division;
+      document.getElementById("pEmployment").textContent = rankTitle(p.officerRecord.clearance) + (p.officerRecord.status === "TERMINATED" ? " (TERMINATED)" : "");
+    } else {
+      document.getElementById("pRole").textContent = "Civilian";
+      document.getElementById("pEmployment").textContent = "Civilian";
+    }
+
+    document.getElementById("pAge").textContent = p.age;
+    document.getElementById("pOrigin").textContent = p.origin;
+
+    const statusEl = document.getElementById("pStatus");
+    statusEl.textContent = p.status.label;
+    statusEl.style.color = p.status.color;
+
+    const riskLabelEl = document.getElementById("pRiskLabel");
+    riskLabelEl.textContent = riskLabel(p.risk);
+    riskLabelEl.style.color = riskColor(p.risk);
+    const riskBar = document.getElementById("pRiskBar");
+    riskBar.style.width = p.risk + "%";
+    riskBar.style.background = riskColor(p.risk);
+
+    // classified gating for officer files: unlocks based on the VIEWER's clearance
+    if (p.isOfficer) {
+      contactLabel.textContent = "CONTACT & VEHICLE";
+      if (canViewOfficerClassified(currentOfficer)) {
+        contactBlock.innerHTML =
+          '<div class="row"><span class="label">PHONE</span><span class="value">' + p.phone + '</span></div>' +
+          '<div class="row"><span class="label">ADDRESS</span><span class="value">' + p.address + '</span></div>' +
+          '<div class="row"><span class="label">VEHICLE</span><span class="value">' + p.vehicle + '</span></div>' +
+          '<div class="row"><span class="label">PLATE</span><span class="value">' + p.plate + '</span></div>';
+        historyLabel.textContent = "HISTORY";
+        historyBlock.innerHTML = '<ul class="history-list">' + p.history.map(h => '<li>' + h + '</li>').join("") + '</ul>';
+      } else {
+        contactBlock.innerHTML = '<div class="classified-block">🔒 CLASSIFIED — OFFICER FILE, SERGEANT (LEVEL 3) CLEARANCE REQUIRED</div>';
+        historyLabel.textContent = "HISTORY";
+        historyBlock.innerHTML = '<div class="classified-block">🔒 CLASSIFIED — OFFICER FILE, SERGEANT (LEVEL 3) CLEARANCE REQUIRED</div>';
+      }
+      if (canViewOfficerNotes(currentOfficer)) {
+        noteBlock.innerHTML = '<div class="note-text">' + p.note + '</div>';
+      } else {
+        noteBlock.innerHTML = '<div class="classified-block">🔒 CLASSIFIED — OFFICER FILE, DETECTIVE (LEVEL 2) CLEARANCE REQUIRED</div>';
+      }
+    } else {
+      contactLabel.textContent = "CONTACT & VEHICLE";
+      contactBlock.innerHTML =
+        '<div class="row"><span class="label">PHONE</span><span class="value">' + p.phone + '</span></div>' +
+        '<div class="row"><span class="label">ADDRESS</span><span class="value">' + p.address + '</span></div>' +
+        '<div class="row"><span class="label">VEHICLE</span><span class="value">' + p.vehicle + '</span></div>' +
+        '<div class="row"><span class="label">PLATE</span><span class="value">' + p.plate + '</span></div>';
+      historyLabel.textContent = "HISTORY";
+      historyBlock.innerHTML = '<ul class="history-list">' + p.history.map(h => '<li>' + h + '</li>').join("") + '</ul>';
+      noteBlock.innerHTML = '<div class="note-text">' + p.note + '</div>';
+    }
+
+    flagBtn.classList.remove("flagged");
+    flagBtn.textContent = "FLAG RECORD";
+    boloOutBtn.disabled = false;
+    boloOutBtn.textContent = "🚨 PUT OUT BOLO";
+
+    card.classList.add("show");
+    emptyState.style.display = "none";
+  }
+
+  function renderSearchHistory() {
+    searchHistoryEl.innerHTML = "";
+    history.forEach(name => {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = properCase(name);
+      chip.addEventListener("click", () => {
+        searchInput.value = properCase(name);
+        doSearch(name);
+      });
+      searchHistoryEl.appendChild(chip);
+    });
+  }
+
+  function doSearch(raw) {
+    const trimmed = raw.trim();
+    if (!isValidFullName(trimmed)) {
+      invalidMsg.classList.add("show");
+      card.classList.remove("show");
+      emptyState.style.display = "none";
+      return;
+    }
+    invalidMsg.classList.remove("show");
+    const person = getOrCreatePersonByName(trimmed);
+    renderPerson(person);
+    if (!history.some(h => nameKey(h) === nameKey(trimmed))) {
+      history.unshift(trimmed);
+      history = history.slice(0, 8);
+      renderSearchHistory();
+    }
+    logActivity("Searched record for " + properCase(trimmed) + " (" + person.id + ").");
+  }
+
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && searchInput.value.trim()) doSearch(searchInput.value);
+  });
+
+  flagBtn.addEventListener("click", () => {
+    const flagged = flagBtn.classList.toggle("flagged");
+    flagBtn.textContent = flagged ? "FLAGGED ⚑" : "FLAG RECORD";
+    if (currentPerson) {
+      logActivity((flagged ? "Flagged" : "Unflagged") + " record for " + properCase(currentPerson.name) + ".");
+    }
+  });
+
+  // ---------- BOLO board ----------
+  let bolos = [];
+  let boloSeed = 1;
+  let boloFilter = "ALL";
+  const BOLO_CHARGES = [
+    "Suspected burglary", "Fraud investigation", "Missing person alert", "Reckless driving report",
+    "Trespassing complaint", "Vandalism in progress", "Smuggling suspicion", "Unlawful entry report",
+    "Disturbance call", "Theft in progress"
+  ];
+  const alertOverlay = document.getElementById("alertOverlay");
+  const alertSub = document.getElementById("alertSub");
+  const boloPill = document.getElementById("boloPill");
+
+  function renderBolos() {
+    const boloList = document.getElementById("boloList");
+    const boloEmpty = document.getElementById("boloEmpty");
+    const visible = bolos.filter(b => boloFilter === "ALL" || b.status === boloFilter.replace("RESOLVED", "RESOLVED"));
+    const filtered = bolos.filter(b => {
+      if (boloFilter === "ALL") return true;
+      if (boloFilter === "ACTIVE") return b.status === "ACTIVE";
+      return b.status === "RESOLVED";
+    });
+    boloEmpty.style.display = filtered.length ? "none" : "block";
+    boloEmpty.textContent = bolos.length ? "No BOLOs match this filter." : "No active BOLOs. Search a record and issue one.";
+
+    const activeCount = bolos.filter(b => b.status === "ACTIVE").length;
+    boloPill.textContent = activeCount;
+    boloPill.classList.toggle("show", activeCount > 0);
+
+    boloList.innerHTML = "";
+    filtered.forEach(b => {
+      const el = document.createElement("div");
+      el.className = "bolo-card" + (b.status === "RESOLVED" ? " resolved" : "");
+      const canVoid = canVoidBolo(currentOfficer);
+      el.innerHTML =
+        '<div class="bolo-left">' +
+          '<div class="bolo-badge">' + initials(properCase(b.name)) + '</div>' +
+          '<div>' +
+            '<div class="bolo-name">' + properCase(b.name) + '</div>' +
+            '<div class="bolo-charge">' + b.charge + '</div>' +
+            '<div class="bolo-meta">Issued by ' + b.issuedBy + ' at ' + b.issuedAt + ' · ' + b.id + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="bolo-actions">' +
+          '<span class="bolo-status">' + b.status + '</span>' +
+          (b.status === "ACTIVE" ? '<button class="resolve-btn" data-id="' + b.id + '">MARK RESOLVED</button>' : '') +
+          (canVoid ? '<button class="void-btn" data-id="' + b.id + '">🗑 VOID</button>' : '') +
+        '</div>';
+      boloList.appendChild(el);
+    });
+
+    boloList.querySelectorAll(".resolve-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const b = bolos.find(x => x.id === btn.dataset.id);
+        b.status = "RESOLVED";
+        logActivity("BOLO for " + properCase(b.name) + " marked RESOLVED.");
+        renderBolos();
+        renderDashboard();
+      });
+    });
+    boloList.querySelectorAll(".void-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const b = bolos.find(x => x.id === btn.dataset.id);
+        if (!b) return;
+        bolos = bolos.filter(x => x.id !== btn.dataset.id);
+        logActivity("BOLO for " + properCase(b.name) + " voided by a Sergeant or higher.");
+        renderBolos();
+        renderDashboard();
+      });
+    });
+  }
+
+  document.getElementById("boloFilterBar").querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      boloFilter = btn.dataset.filter;
+      document.getElementById("boloFilterBar").querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+      renderBolos();
+    });
+  });
+
+  function putOutBolo() {
+    if (!currentPerson) return;
+    const seed = hashString(currentPerson.name.toLowerCase()) + boloSeed;
+    const rand = seededRandom(seed);
+    const charge = pick(rand, BOLO_CHARGES);
+    const bolo = {
+      id: "B-" + (boloSeed++) + "-" + Date.now().toString().slice(-4),
+      name: currentPerson.name,
+      charge: charge,
+      status: "ACTIVE",
+      issuedBy: currentOfficer ? officerDisplayName(currentOfficer) : "Unknown",
+      issuedAt: new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    };
+    bolos.unshift(bolo);
+    renderBolos();
+    logActivity("BOLO issued for " + properCase(currentPerson.name) + " — " + charge + ".");
+
+    boloOutBtn.disabled = true;
+    boloOutBtn.textContent = "BOLO ACTIVE";
+    alertSub.textContent = properCase(currentPerson.name).toUpperCase() + " — " + charge.toUpperCase();
+    alertOverlay.classList.add("active");
+    setTimeout(() => {
+      alertOverlay.classList.remove("active");
+      switchTab("boloPanel");
+    }, 1500);
+  }
+  boloOutBtn.addEventListener("click", putOutBolo);
+
+  // ================================================================
+  // CASE DASHBOARD
+  // ================================================================
+  function mkCase(id, title, type, status, priority, lead, opened, text, opts) {
+    opts = opts || {};
+    return {
+      id, title, type, status, priority, lead, opened,
+      assisting: opts.assisting || [],
+      location: opts.location || "Location not on file",
+      suspects: opts.suspects || [],
+      evidence: opts.evidence || [],
+      notes: [{ time: "Filed " + opened, author: "Case File", text: text }]
+    };
+  }
+
+  let CASES = [
+    mkCase("C-1042", "The Silverpine Vault Incident", "Burglary", "OPEN", "HIGH", "Reyes", "6 days ago",
+      "Entry point unclear. Vault untouched, but the log book is missing three pages.",
+      { location: "Silverpine Trust & Vault Co.", evidence: ["Pried door frame", "Missing ledger pages"] }),
+    mkCase("C-1039", "Old Harbor Disappearance", "Missing Persons", "OPEN", "CRITICAL", "Tem", "11 days ago",
+      "Last seen leaving the harbor office at dusk. No further sightings reported.",
+      { location: "Old Harbor Docks", suspects: [] }),
+    mkCase("C-1031", "Cobbleton Ledger Forgery", "Fraud", "CLOSED", "MEDIUM", "Bennett", "1 month ago",
+      "Handwriting analysis confirmed the forgery. Case closed after full confession."),
+    mkCase("C-1027", "The Amberwick Signal", "Unsolved Mystery", "COLD", "LOW", "Chu", "5 months ago",
+      "A recurring radio signal with no known source. Investigation stalled for lack of leads."),
+    mkCase("C-1021", "Rivergate Warehouse Fire", "Arson", "CLOSED", "HIGH", "Lim", "2 months ago",
+      "Cause traced to a faulty wiring cover-up. Insurance fraud angle ruled out."),
+    mkCase("C-1044", "Thistledown Break-In", "Burglary", "OPEN", "MEDIUM", "Reyes", "2 days ago",
+      "Point of entry: a side window. Nothing appears to have been taken — motive unclear.",
+      { location: "412 Elm St, Thistledown" }),
+    mkCase("C-1036", "Fernbrook Hills Letters", "Fraud", "OPEN", "MEDIUM", "Bennett", "3 weeks ago",
+      "A string of anonymous letters demanding payment. Sender still unidentified."),
+    mkCase("C-1015", "Larkspur Bay Smuggling Ring", "Smuggling", "COLD", "HIGH", "Okafor", "8 months ago",
+      "Trail went cold at the docks. Suspected wider network never confirmed."),
+    mkCase("C-1048", "Copperfield Vandalism Spree", "Vandalism", "OPEN", "LOW", "Tem", "1 day ago",
+      "Several storefronts marked with the same symbol overnight. Pattern under review."),
+    mkCase("C-1009", "Port Meridian Pier Trespassing", "Trespassing", "CLOSED", "LOW", "Okafor", "3 months ago",
+      "A group was found on a closed pier after hours. Warnings issued, no further incidents."),
+    mkCase("C-1006", "The Amberwick Twin Letters", "Unsolved Mystery", "COLD", "LOW", "Chu", "7 months ago",
+      "Two identical letters arrived a year apart from different postmarks. No sender found."),
+    mkCase("C-1046", "Silverpine Storage Unit Fire", "Arson", "OPEN", "HIGH", "Lim", "4 days ago",
+      "Accelerant confirmed. Unit owner currently unreachable for questioning."),
+    mkCase("C-1003", "Cobbleton Missing Ledger", "Fraud", "CLOSED", "LOW", "Bennett", "5 months ago",
+      "Ledger later found misfiled in a neighboring office. Closed with no charges."),
+    mkCase("C-1050", "Rivergate Dock Worker Vanishing", "Missing Persons", "OPEN", "CRITICAL", "Tem", "Just now",
+      "Failed to return from a scheduled shift. Coworkers report nothing unusual beforehand.")
+  ];
+  let caseSeed = 1051;
+  let caseFilter = "ALL";
+  let lastAddedCaseId = null;
+  let expandedCases = new Set();
+
+  function renderDashboard() {
+    const open = CASES.filter(c => c.status === "OPEN").length;
+    const closed = CASES.filter(c => c.status === "CLOSED").length;
+    document.getElementById("statTotal").textContent = CASES.length;
+    document.getElementById("statOpen").textContent = open;
+    document.getElementById("statClosed").textContent = closed;
+    document.getElementById("statBolo").textContent = bolos.filter(b => b.status === "ACTIVE").length;
+
+    const types = {};
+    CASES.forEach(c => { types[c.type] = (types[c.type] || 0) + 1; });
+    const maxCount = Math.max(...Object.values(types));
+    const barChart = document.getElementById("barChart");
+    barChart.innerHTML = "";
+    Object.keys(types).sort((a, b) => types[b] - types[a]).forEach(type => {
+      const count = types[type];
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      row.innerHTML =
+        '<div class="bar-row-top"><span>' + type + '</span><span>' + count + '</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + (count / maxCount * 100) + '%"></div></div>';
+      barChart.appendChild(row);
+    });
+
+    const caseList = document.getElementById("caseList");
+    caseList.innerHTML = "";
+    const visible = CASES.filter(c => caseFilter === "ALL" || c.status === caseFilter);
+    const statusCycle = { OPEN: "CLOSED", CLOSED: "COLD", COLD: "OPEN" };
+    visible.forEach(c => {
+      const row = document.createElement("div");
+      const isExpanded = expandedCases.has(c.id);
+      row.className = "case-row" + (c.id === lastAddedCaseId ? " just-added" : "") + (isExpanded ? " expanded" : "");
+
+      const assistLine = c.assisting.length ? " · Assisting: " + c.assisting.join(", ") : "";
+      const suspectsHtml = c.suspects.length
+        ? '<div class="case-subhead">SUSPECTS</div><ul class="bullet-list">' + c.suspects.map(s => '<li>' + s + '</li>').join("") + '</ul>'
+        : "";
+      const evidenceHtml = c.evidence.length
+        ? '<div class="case-subhead">EVIDENCE</div><ul class="bullet-list">' + c.evidence.map(s => '<li>' + s + '</li>').join("") + '</ul>'
+        : "";
+      const notesHtml = '<div class="case-subhead">CASE NOTES</div>' +
+        c.notes.map(n => '<div class="case-note"><div class="cn-meta">' + n.time + ' — ' + n.author + '</div>' + n.text + '</div>').join("");
+
+      row.innerHTML =
+        '<div class="case-row-top">' +
+          '<div><div class="case-id">' + c.id + ' · ' + c.type.toUpperCase() + '</div><div class="case-title">' + c.title + '</div></div>' +
+          '<div class="case-badges">' +
+            '<span class="case-priority ' + c.priority + '">' + c.priority + '</span>' +
+            '<button class="case-status ' + c.status + '" data-id="' + c.id + '">' + c.status + '</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="case-meta">Lead: Officer ' + c.lead + assistLine + '<br/>Location: ' + c.location + ' · Opened ' + c.opened + '</div>' +
+        '<div class="case-desc">' +
+          notesHtml + suspectsHtml + evidenceHtml +
+          '<div class="add-note-row"><input type="text" placeholder="Add a follow-up note..." data-noteinput="' + c.id + '" /><button data-noteadd="' + c.id + '">ADD</button></div>' +
+        '</div>';
+
+      row.addEventListener("click", (e) => {
+        if (e.target.closest("button") || e.target.closest("input")) return;
+        if (expandedCases.has(c.id)) expandedCases.delete(c.id); else expandedCases.add(c.id);
+        row.classList.toggle("expanded");
+      });
+      const statusBtn = row.querySelector(".case-status");
+      statusBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const cs = CASES.find(x => x.id === c.id);
+        cs.status = statusCycle[cs.status];
+        logActivity("Case " + cs.id + " status set to " + cs.status + ".");
+        renderDashboard();
+        renderAnalytics();
+      });
+      const noteBtn = row.querySelector("[data-noteadd]");
+      noteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const input = row.querySelector("[data-noteinput='" + c.id + "']");
+        const text = input.value.trim();
+        if (!isRealisticText(text, 3, 8)) {
+          input.style.borderColor = "#D95C5C";
+          input.placeholder = "Write a real follow-up note first...";
+          return;
+        }
+        const cs = CASES.find(x => x.id === c.id);
+        cs.notes.unshift({
+          time: new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+          author: currentOfficer ? officerDisplayName(currentOfficer) : "Unknown",
+          text: text
+        });
+        logActivity("Added a note to case " + cs.id + ".");
+        expandedCases.add(c.id);
+        renderDashboard();
+      });
+      caseList.appendChild(row);
+    });
+    if (lastAddedCaseId) lastAddedCaseId = null;
+  }
+
+  document.getElementById("caseFilterBar").querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      caseFilter = btn.dataset.filter;
+      document.getElementById("caseFilterBar").querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+      renderDashboard();
+    });
+  });
+
+  // ---------- New case form ----------
+  const caseAgentInput = document.getElementById("caseAgentInput");
+  function renderCaseLeadOptions() {
+    caseAgentInput.innerHTML = "";
+    OFFICERS.filter(o => o.status !== "TERMINATED").forEach(o => {
+      const opt = document.createElement("option");
+      opt.textContent = officerDisplayName(o).split(" ").slice(-1)[0];
+      caseAgentInput.appendChild(opt);
+    });
+  }
+  renderCaseLeadOptions();
+
+  function splitCommaList(raw) {
+    return raw.split(",").map(s => s.trim()).filter(Boolean);
+  }
+
+  document.getElementById("fileCaseBtn").addEventListener("click", () => {
+    const title = document.getElementById("caseTitleInput").value.trim();
+    const desc = document.getElementById("caseDescInput").value.trim();
+    const toast = document.getElementById("caseToast");
+
+    if (!isRealisticText(title, 2, 6)) {
+      toast.textContent = "ENTER A REAL, DESCRIPTIVE CASE TITLE (AT LEAST TWO WORDS)";
+      toast.style.background = "#2A1113"; toast.style.borderColor = "#6B2328"; toast.style.color = "#E85D5D";
+      toast.classList.add("show");
+      return;
+    }
+    if (!isRealisticText(desc, 4, 15)) {
+      toast.textContent = "WRITE REAL CASE NOTES — NO PLACEHOLDER TEXT";
+      toast.style.background = "#2A1113"; toast.style.borderColor = "#6B2328"; toast.style.color = "#E85D5D";
+      toast.classList.add("show");
+      return;
+    }
+
+    const newCase = {
+      id: "C-" + (caseSeed++),
+      title: title,
+      type: document.getElementById("caseTypeInput").value,
+      priority: document.getElementById("casePriorityInput").value,
+      status: document.getElementById("caseStatusInput").value,
+      lead: caseAgentInput.value,
+      assisting: splitCommaList(document.getElementById("caseAssistInput").value),
+      location: document.getElementById("caseLocationInput").value.trim() || "Location not on file",
+      suspects: splitCommaList(document.getElementById("caseSuspectsInput").value),
+      evidence: splitCommaList(document.getElementById("caseEvidenceInput").value),
+      opened: "Just now",
+      notes: [{ time: "Just now", author: currentOfficer ? officerDisplayName(currentOfficer) : "Unknown", text: desc }]
+    };
+    CASES.unshift(newCase);
+    lastAddedCaseId = newCase.id;
+    logActivity("New case filed: " + newCase.title + " (" + newCase.id + ").");
+
+    toast.textContent = "CASE FILED — VIEW IT ON THE DASHBOARD";
+    toast.style.background = "#12241A"; toast.style.borderColor = "#2E4B29"; toast.style.color = "#4FAE6B";
+    toast.classList.add("show");
+
+    document.getElementById("caseTitleInput").value = "";
+    document.getElementById("caseDescInput").value = "";
+    document.getElementById("caseAssistInput").value = "";
+    document.getElementById("caseLocationInput").value = "";
+    document.getElementById("caseSuspectsInput").value = "";
+    document.getElementById("caseEvidenceInput").value = "";
+    document.getElementById("caseStatusInput").value = "OPEN";
+    document.getElementById("casePriorityInput").value = "MEDIUM";
+
+    setTimeout(() => {
+      toast.classList.remove("show");
+      switchTab("dashboardPanel");
+    }, 1200);
+  });
+
+  // ================================================================
+  // ANALYTICS
+  // ================================================================
+  function renderBarSet(containerId, data, colorClass) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = "";
+    const max = Math.max(1, ...data.map(d => d.count));
+    data.forEach(d => {
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      row.innerHTML =
+        '<div class="bar-row-top"><span>' + d.label + '</span><span>' + d.count + '</span></div>' +
+        '<div class="bar-track"><div class="bar-fill ' + (colorClass || "") + '" style="width:' + (d.count / max * 100) + '%"></div></div>';
+      el.appendChild(row);
+    });
+    if (!data.length) el.innerHTML = '<div class="empty-state" style="padding:14px 0;">No data yet.</div>';
+  }
+
+  function renderAnalytics() {
+    const total = CASES.length;
+    const closed = CASES.filter(c => c.status === "CLOSED").length;
+    const open = CASES.filter(c => c.status === "OPEN").length;
+    const cold = CASES.filter(c => c.status === "COLD").length;
+    const resRate = total ? Math.round((closed / total) * 100) : 0;
+
+    const byOfficer = {};
+    CASES.forEach(c => { byOfficer[c.lead] = (byOfficer[c.lead] || 0) + 1; });
+    const officerRows = Object.keys(byOfficer).sort((a, b) => byOfficer[b] - byOfficer[a])
+      .map(k => ({ label: k, count: byOfficer[k] }));
+    const topOfficer = officerRows[0] ? officerRows[0].label : "—";
+
+    const byDivision = {};
+    OFFICERS.filter(o => o.status !== "TERMINATED").forEach(o => { byDivision[o.division] = (byDivision[o.division] || 0) + 1; });
+    const divisionRows = Object.keys(byDivision).sort((a, b) => byDivision[b] - byDivision[a])
+      .map(k => ({ label: k, count: byDivision[k] }));
+
+    const byRank = {};
+    OFFICERS.filter(o => o.status !== "TERMINATED").forEach(o => {
+      const t = rankTitle(o.clearance);
+      byRank[t] = (byRank[t] || 0) + 1;
+    });
+    const rankRows = RANKS.map(r => ({ label: r.title, count: byRank[r.title] || 0 })).filter(r => r.count > 0);
+
+    const boloActive = bolos.filter(b => b.status === "ACTIVE").length;
+    const boloResolved = bolos.filter(b => b.status === "RESOLVED").length;
+
+    document.getElementById("analyticsHeadline").innerHTML =
+      'Case resolution rate is <b>' + resRate + '%</b> across <b>' + total + '</b> filed cases. ' +
+      'Top caseload: <b>Officer ' + topOfficer + '</b>. ' +
+      '<b>' + boloActive + '</b> BOLO' + (boloActive === 1 ? "" : "s") + ' currently active.';
+
+    renderBarSet("analyticsResolution", [
+      { label: "OPEN", count: open },
+      { label: "CLOSED", count: closed },
+      { label: "COLD", count: cold }
+    ]);
+    renderBarSet("analyticsByOfficer", officerRows, "blue");
+    renderBarSet("analyticsByDivision", divisionRows);
+    renderBarSet("analyticsByRank", rankRows, "blue");
+    renderBarSet("analyticsBolo", [
+      { label: "ACTIVE", count: boloActive },
+      { label: "RESOLVED", count: boloResolved }
+    ]);
+  }
+
+  // ================================================================
+  // ROSTER / PROFILE
+  // ================================================================
+  function renderProfile() {
+    if (!currentOfficer) return;
+    const el = document.getElementById("profileCard");
+    const selectable = selectableDivisionsFor(currentOfficer);
+    const options = selectable.map(d => '<option' + (d === currentOfficer.division ? " selected" : "") + '>' + d + '</option>').join("");
+    const restrictedNote = selectable.length < DIVISIONS.length
+      ? '<div class="subhint">Internal Affairs and the Office of the Chief aren\'t self-transfer divisions — Command must reassign you.</div>'
+      : "";
+    const ftoTag = currentOfficer.fto ? ' <span class="tag-chip">🎓 FTO</span>' : "";
+    el.innerHTML =
+      '<div class="profile-top">' +
+        '<div class="agent-avatar">' + initials(officerDisplayName(currentOfficer)) + '</div>' +
+        '<div>' +
+          '<div class="profile-name">Officer ' + officerDisplayName(currentOfficer) + ftoTag + '</div>' +
+          '<div class="profile-rank">' + rankTitle(currentOfficer.clearance) + ' · LEVEL ' + currentOfficer.clearance + '</div>' +
+          '<div class="profile-meta">Badge #' + currentOfficer.badge + ' · ' + currentOfficer.division + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="division-row">' +
+        '<label for="myDivisionSelect">MY DIVISION</label>' +
+        '<select id="myDivisionSelect">' + options + '</select>' +
+      '</div>' + restrictedNote +
+      '<div class="password-row">' +
+        '<label class="pw-row-label">CHANGE MY PASSWORD</label>' +
+        '<div class="pw-grid">' +
+          '<input type="password" id="pwCurrent" placeholder="Current password" autocomplete="off" />' +
+          '<input type="password" id="pwNew" placeholder="New password" autocomplete="off" />' +
+          '<input type="password" id="pwConfirm" placeholder="Confirm new password" autocomplete="off" />' +
+        '</div>' +
+        '<button class="login-btn secondary pw-save-btn" id="pwSaveBtn">🔒 UPDATE PASSWORD</button>' +
+        '<div class="pw-msg" id="pwMsg"></div>' +
+      '</div>';
+
+    document.getElementById("myDivisionSelect").addEventListener("change", (e) => {
+      if (!selectableDivisionsFor(currentOfficer).includes(e.target.value)) { renderProfile(); return; }
+      currentOfficer.division = e.target.value;
+      persistOfficer(currentOfficer);
+      logActivity("Transferred to " + currentOfficer.division + ".");
+      renderProfile();
+      renderRoster();
+      renderAnalytics();
+      refreshTabVisibility();
+    });
+
+    document.getElementById("pwSaveBtn").addEventListener("click", () => {
+      const cur = document.getElementById("pwCurrent").value;
+      const next = document.getElementById("pwNew").value;
+      const confirm = document.getElementById("pwConfirm").value;
+      const msg = document.getElementById("pwMsg");
+      msg.className = "pw-msg show";
+      if (cur !== currentOfficer.password) {
+        msg.textContent = "CURRENT PASSWORD DOES NOT MATCH.";
+        msg.classList.add("err");
+        return;
+      }
+      if (next.length < 4) {
+        msg.textContent = "NEW PASSWORD MUST BE AT LEAST 4 CHARACTERS.";
+        msg.classList.add("err");
+        return;
+      }
+      if (next !== confirm) {
+        msg.textContent = "NEW PASSWORD AND CONFIRMATION DO NOT MATCH.";
+        msg.classList.add("err");
+        return;
+      }
+      currentOfficer.password = next;
+      persistOfficer(currentOfficer);
+      logActivity("Changed their own account password.");
+      msg.textContent = "PASSWORD UPDATED — SYNCED TO ALL DEVICES.";
+      msg.classList.remove("err");
+      msg.classList.add("ok");
+      document.getElementById("pwCurrent").value = "";
+      document.getElementById("pwNew").value = "";
+      document.getElementById("pwConfirm").value = "";
+    });
+  }
+
+  function renderRoster() {
+    renderProfile();
+    const agentList = document.getElementById("agentList");
+    agentList.innerHTML = "";
+    OFFICERS.forEach(o => {
+      const terminated = o.status === "TERMINATED";
+      const el = document.createElement("div");
+      el.className = "agent-card" + (terminated ? " terminated" : "");
+
+      let actionsHtml = "";
+      if (canManageRoster(currentOfficer) && !terminated && canManageTarget(currentOfficer, o)) {
+        actionsHtml += '<button class="mini-btn promote" data-act="promote" data-badge="' + o.badge + '">▲ PROMOTE</button>';
+        actionsHtml += '<button class="mini-btn demote" data-act="demote" data-badge="' + o.badge + '">▼ DEMOTE</button>';
+        actionsHtml += '<button class="mini-btn terminate" data-act="terminate" data-badge="' + o.badge + '">⛔ TERMINATE</button>';
+      }
+      if (canCommandOverride(currentOfficer) && terminated && o.badge !== currentOfficer.badge) {
+        actionsHtml += '<button class="mini-btn reinstate" data-act="reinstate" data-badge="' + o.badge + '">↺ REINSTATE</button>';
+      }
+
+      let commandHtml = "";
+      if (canCommandOverride(currentOfficer) && !terminated && o.badge !== currentOfficer.badge) {
+        const rankOptions = RANKS.map(r => '<option value="' + r.level + '"' + (r.level === o.clearance ? " selected" : "") + '>' + r.level + ' — ' + r.title + '</option>').join("");
+        commandHtml = '<div><div class="command-label">COMMAND OVERRIDE</div><select class="command-select" data-override="' + o.badge + '">' + rankOptions + '</select></div>';
+      }
+
+      if (canDesignateFTO(currentOfficer) && !terminated) {
+        actionsHtml += '<button class="mini-btn" data-act="' + (o.fto ? "unfto" : "fto") + '" data-badge="' + o.badge + '">' + (o.fto ? "🎓 REMOVE FTO" : "🎓 DESIGNATE FTO") + '</button>';
+      }
+      let pwHtml = "";
+      if (canViewPasswords(currentOfficer)) {
+        actionsHtml += '<button class="mini-btn" data-act="showpw" data-badge="' + o.badge + '">👁 PASSWORD</button>';
+        pwHtml = '<div class="password-reveal" id="pw-' + o.badge + '" style="display:none;">PASSWORD: ' + o.password + '</div>';
+      }
+
+      el.innerHTML =
+        '<div class="agent-avatar">' + initials(officerDisplayName(o)) + '</div>' +
+        '<div>' +
+          '<div class="agent-info-name">Officer ' + officerDisplayName(o) + (o.fto ? ' <span class="tag-chip">🎓 FTO</span>' : '') + (isIA(o) ? ' <span class="tag-chip ia">IA</span>' : '') + (isChiefOffice(o) ? ' <span class="tag-chip chief">CHIEF\'S OFFICE</span>' : '') + '</div>' +
+          '<div class="agent-info-role">' + rankTitle(o.clearance) + ' · ' + o.division + '</div>' +
+          '<div class="agent-info-meta">Badge #' + o.badge + (terminated ? ' · <span class="term-tag">TERMINATED</span>' : (o.status === "SUSPENDED" ? ' · <span class="term-tag">SUSPENDED</span>' : '')) + '</div>' +
+          pwHtml +
+        '</div>' +
+        '<div class="agent-right">' +
+          '<span class="clearance-chip">LEVEL ' + o.clearance + '</span>' +
+          (actionsHtml ? '<div class="agent-actions">' + actionsHtml + '</div>' : '') +
+          commandHtml +
+        '</div>';
+      agentList.appendChild(el);
+    });
+
+    agentList.querySelectorAll("[data-act]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const badge = btn.dataset.badge;
+        const target = OFFICERS.find(o => o.badge === badge);
+        if (!target) return;
+        if (btn.dataset.act === "promote") {
+          if (!canManageTarget(currentOfficer, target) || target.clearance >= 10) return;
+          target.clearance++;
+          persistOfficer(target);
+          logActivity("Promoted Officer " + officerDisplayName(target) + " to " + rankTitle(target.clearance) + ".");
+        } else if (btn.dataset.act === "demote") {
+          if (!canManageTarget(currentOfficer, target) || target.clearance <= 1) return;
+          target.clearance--;
+          persistOfficer(target);
+          logActivity("Demoted Officer " + officerDisplayName(target) + " to " + rankTitle(target.clearance) + ".");
+        } else if (btn.dataset.act === "terminate") {
+          if (!canManageTarget(currentOfficer, target)) return;
+          if (!window.confirm("Terminate Officer " + officerDisplayName(target) + "? This revokes their portal access.")) return;
+          target.status = "TERMINATED";
+          persistOfficer(target);
+          logActivity("Terminated Officer " + officerDisplayName(target) + ".");
+        } else if (btn.dataset.act === "reinstate") {
+          if (!canCommandOverride(currentOfficer)) return;
+          target.status = "ACTIVE";
+          persistOfficer(target);
+          logActivity("Reinstated Officer " + officerDisplayName(target) + ".");
+        } else if (btn.dataset.act === "fto") {
+          if (!canDesignateFTO(currentOfficer)) return;
+          target.fto = true;
+          persistOfficer(target);
+          logActivity("Designated Officer " + officerDisplayName(target) + " as a Field Training Officer.");
+        } else if (btn.dataset.act === "unfto") {
+          if (!canDesignateFTO(currentOfficer)) return;
+          target.fto = false;
+          persistOfficer(target);
+          logActivity("Removed Field Training Officer designation from Officer " + officerDisplayName(target) + ".");
+        } else if (btn.dataset.act === "showpw") {
+          if (!canViewPasswords(currentOfficer)) return;
+          const row = document.getElementById("pw-" + target.badge);
+          if (row) {
+            const showing = row.style.display !== "none";
+            row.style.display = showing ? "none" : "block";
+            if (!showing) logActivity("Viewed the password on file for Officer " + officerDisplayName(target) + ".");
+          }
+          return; // don't re-render, it would hide the row again
+        }
+        renderRoster();
+        renderCaseLeadOptions();
+        renderAnalytics();
+      });
+    });
+
+    agentList.querySelectorAll("[data-override]").forEach(sel => {
+      sel.addEventListener("change", () => {
+        const badge = sel.dataset.override;
+        const target = OFFICERS.find(o => o.badge === badge);
+        if (!target || !canCommandOverride(currentOfficer)) return;
+        const newLevel = parseInt(sel.value, 10);
+        target.clearance = newLevel;
+        persistOfficer(target);
+        logActivity("Command override: set Officer " + officerDisplayName(target) + " to " + rankTitle(newLevel) + ".");
+        renderRoster();
+        renderAnalytics();
+      });
+    });
+  }
+
+  // ================================================================
+  // ACTIVITY LOG (personal + department-wide, persisted across sessions)
+  // ================================================================
+  const LOG_KEY = "crs_activity_log_v1";
+  function loadLog() {
+    try { return JSON.parse(localStorage.getItem(LOG_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveLog() {
+    try { localStorage.setItem(LOG_KEY, JSON.stringify(activityLog.slice(0, 500))); } catch (e) {}
+    queueSync();
+  }
+  let activityLog = loadLog();
+  let logFilter = "MINE";
+
+  function logActivity(text) {
+    const now = new Date();
+    const entry = {
+      time: now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      badge: currentOfficer ? currentOfficer.badge : "SYS",
+      who: currentOfficer ? officerDisplayName(currentOfficer) : "SYSTEM",
+      text: text
+    };
+    activityLog.unshift(entry);
+    activityLog = activityLog.slice(0, 500);
+    saveLog();
+    renderActivityLog();
+    updateLiveTicker(entry);
+  }
+
+  function renderActivityLog() {
+    const logList = document.getElementById("logList");
+    const logEmpty = document.getElementById("logEmpty");
+    const logLocked = document.getElementById("logLocked");
+
+    if (logFilter === "ALL" && !canViewGlobalLog(currentOfficer)) {
+      logList.innerHTML = "";
+      logEmpty.style.display = "none";
+      logLocked.style.display = "block";
+      document.getElementById("logLockedLevel").textContent =
+        "You are currently " + (currentOfficer ? rankTitle(currentOfficer.clearance) + " (Level " + currentOfficer.clearance + ")" : "not signed in") + ".";
+      return;
+    }
+    logLocked.style.display = "none";
+
+    const entries = logFilter === "MINE"
+      ? activityLog.filter(e => currentOfficer && e.badge === currentOfficer.badge)
+      : activityLog;
+
+    logEmpty.style.display = entries.length ? "none" : "block";
+    logEmpty.textContent = logFilter === "MINE" ? "No activity on your log yet." : "No department activity yet.";
+
+    logList.innerHTML = entries.map(e =>
+      '<div class="log-entry"><div class="log-time">' + e.time + '</div>' +
+      (logFilter === "ALL" ? '<div class="log-who">' + e.who + '</div>' : '') +
+      '<div class="log-text">' + e.text + '</div></div>'
+    ).join("");
+  }
+
+  document.getElementById("logFilterBar").querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      logFilter = btn.dataset.filter;
+      document.getElementById("logFilterBar").querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+      renderActivityLog();
+    });
+  });
+
+  // ---------- live dispatch ticker/simulation ----------
+  const LIVE_DISPATCH = [
+    "Radio check — all units respond.",
+    "Patrol sweep completed, Sector 3 clear.",
+    "Records sync complete — 0 discrepancies found.",
+    "Silent alarm at Cobbleton Market cleared, false trigger.",
+    "Perimeter check logged at Old Harbor — all clear.",
+    "Unit requesting code 4 near Rivergate.",
+    "Dispatch: shift change in 10 minutes, units check in.",
+    "Weather advisory logged for Larkspur Bay district.",
+    "Routine equipment check completed for Unit 12.",
+    "Backup requested near Thistledown, non-urgent."
+  ];
+  let liveTicker = null;
+  function updateLiveTicker(entry) {
+    const el = document.getElementById("liveTickerText");
+    if (el) el.textContent = entry.time + " — " + entry.who + ": " + entry.text;
+  }
+  function pushSystemDispatch() {
+    const now = new Date();
+    const entry = {
+      time: now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      badge: "SYS",
+      who: "DISPATCH",
+      text: pick(seededRandom(now.getTime() + Math.floor(Math.random() * 99999)), LIVE_DISPATCH)
+    };
+    activityLog.unshift(entry);
+    activityLog = activityLog.slice(0, 500);
+    saveLog();
+    if (document.getElementById("logPanel").classList.contains("active")) renderActivityLog();
+    updateLiveTicker(entry);
+  }
+  function startLiveFeed() {
+    stopLiveFeed();
+    liveTicker = setInterval(pushSystemDispatch, 26000);
+  }
+  function stopLiveFeed() {
+    if (liveTicker) clearInterval(liveTicker);
+    liveTicker = null;
+  }
+
+  // ================================================================
+  // COMMS / RADIO CHANNELS
+  // ================================================================
+  const CHANNELS = [
+    { id: "dispatch", label: "DISPATCH" },
+    { id: "ch1", label: "CH 1" }, { id: "ch2", label: "CH 2" }, { id: "ch3", label: "CH 3" },
+    { id: "ch4", label: "CH 4" }, { id: "ch5", label: "CH 5" }, { id: "ch6", label: "CH 6" },
+    { id: "ch7", label: "CH 7" }, { id: "ch8", label: "CH 8" }, { id: "ch9", label: "CH 9" }
+  ];
+  const COMMS_STATE_KEY = "crs_comms_v1";
+  function loadComms() {
+    try { return JSON.parse(localStorage.getItem(COMMS_STATE_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveComms() {
+    try { localStorage.setItem(COMMS_STATE_KEY, JSON.stringify(commsState)); } catch (e) {}
+    queueSync();
+  }
+  let commsState = loadComms();
+  let currentChannel = "dispatch";
+
+  function commsMsgs(channelId) {
+    if (!commsState[channelId]) commsState[channelId] = [];
+    return commsState[channelId];
+  }
+
+  function renderCommsChannelBar() {
+    const bar = document.getElementById("commsChannelBar");
+    bar.innerHTML = CHANNELS.map(c =>
+      '<button class="filter-btn' + (c.id === currentChannel ? " active" : "") + '" data-channel="' + c.id + '">' + c.label + '</button>'
+    ).join("");
+    bar.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentChannel = btn.dataset.channel;
+        renderCommsChannelBar();
+        renderCommsFeed();
+      });
+    });
+    const broadcastWrap = document.getElementById("commsBroadcastWrap");
+    broadcastWrap.style.display = (currentOfficer && currentOfficer.isDispatch) ? "flex" : "none";
+  }
+
+  function waveformBars(seedStr) {
+    const rand = seededRandom(hashString(seedStr));
+    let out = "";
+    for (let i = 0; i < 28; i++) out += '<span style="height:' + Math.round(4 + rand() * 14) + 'px"></span>';
+    return out;
+  }
+
+  function pickRealisticVoice() {
+    const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+    if (!voices.length) return null;
+    const select = document.getElementById("commsVoiceSelect");
+    if (select && select.value) {
+      const chosen = voices.find(v => (v.name + "|" + v.lang) === select.value);
+      if (chosen) return chosen;
+    }
+    const preferred = voices.find(v => /Google US English|Natural|Microsoft.*Online|Samantha|Daniel/i.test(v.name) && v.lang.startsWith("en"));
+    return preferred || voices.find(v => v.lang.startsWith("en")) || voices[0];
+  }
+
+  const VOICE_PREF_KEY = "crs_voice_pref_v1";
+  function populateVoiceSelect() {
+    if (!("speechSynthesis" in window)) return;
+    const select = document.getElementById("commsVoiceSelect");
+    if (!select) return;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) {
+      select.innerHTML = '<option value="">Loading voices…</option>';
+      return;
+    }
+    const saved = localStorage.getItem(VOICE_PREF_KEY) || "";
+    select.innerHTML = '<option value="">Auto (recommended)</option>' +
+      voices.map(v => {
+        const val = v.name + "|" + v.lang;
+        return '<option value="' + val.replace(/"/g, "&quot;") + '"' + (val === saved ? " selected" : "") + '>' + v.name + " (" + v.lang + ")</option>";
+      }).join("");
+  }
+  if ("speechSynthesis" in window) {
+    // Voice lists load asynchronously and inconsistently across browsers —
+    // some never fire onvoiceschanged, so poll as a fallback until we get results.
+    window.speechSynthesis.onvoiceschanged = populateVoiceSelect;
+    populateVoiceSelect();
+    window.speechSynthesis.getVoices(); // some browsers need this call to kick off loading
+    let voicePollTries = 0;
+    const voicePoll = setInterval(() => {
+      voicePollTries++;
+      const found = window.speechSynthesis.getVoices();
+      if (found.length) {
+        populateVoiceSelect();
+        clearInterval(voicePoll);
+      } else if (voicePollTries > 20) {
+        clearInterval(voicePoll);
+        const select = document.getElementById("commsVoiceSelect");
+        if (select && !window.speechSynthesis.getVoices().length) {
+          select.innerHTML = '<option value="">No voices found on this browser/device</option>';
+        }
+      }
+    }, 300);
+  } else {
+    const select = document.getElementById("commsVoiceSelect");
+    if (select) select.innerHTML = '<option value="">Voice playback not supported in this browser</option>';
+  }
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.id === "commsVoiceSelect") {
+      localStorage.setItem(VOICE_PREF_KEY, e.target.value);
+    }
+  });
+
+  function speakMessage(text, btn) {
+    if (!("speechSynthesis" in window)) { alert("Voice playback isn't supported in this browser."); return; }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const voice = pickRealisticVoice();
+    if (voice) utter.voice = voice;
+    utter.rate = 0.98;
+    utter.pitch = 0.95;
+    if (btn) {
+      btn.classList.add("playing");
+      btn.textContent = "❚❚";
+      utter.onend = () => { btn.classList.remove("playing"); btn.textContent = "▶"; };
+      utter.onerror = () => { btn.classList.remove("playing"); btn.textContent = "▶"; };
+    }
+    window.speechSynthesis.speak(utter);
+  }
+
+  function renderCommsFeed() {
+    const feed = document.getElementById("commsFeed");
+    const msgs = commsMsgs(currentChannel);
+    if (!msgs.length) {
+      feed.innerHTML = '<div class="comms-empty">No messages on this channel yet.</div>';
+      return;
+    }
+    feed.innerHTML = msgs.map((m, idx) => {
+      const isDispatch = m.badge === "0000";
+      const body = m.voice
+        ? '<div class="comms-voice-msg">' +
+            '<button class="comms-play-btn" data-play="' + idx + '">▶</button>' +
+            '<div class="comms-waveform">' + waveformBars(m.time + m.text) + '</div>' +
+            '<span class="comms-voice-tag">VOICE · ' + Math.max(1, Math.round(m.text.split(/\s+/).length / 2.5)) + 's</span>' +
+          '</div>'
+        : '<div class="comms-msg-text">' + m.text.replace(/</g, "&lt;") + '</div>';
+      return '<div class="comms-msg' + (isDispatch ? " dispatch" : "") + '">' +
+        '<div class="comms-msg-meta"><span class="who">' + m.who + '</span><span>' + m.time + '</span></div>' +
+        body +
+      '</div>';
+    }).join("");
+    feed.scrollTop = feed.scrollHeight;
+    feed.querySelectorAll("[data-play]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const msg = msgs[Number(btn.dataset.play)];
+        speakMessage(msg.text, btn);
+      });
+    });
+  }
+
+  function postCommsMessage(text, isVoice) {
+    if (!text.trim() || !currentOfficer) return;
+    const now = new Date();
+    const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const who = currentOfficer.isDispatch ? "DISPATCH" : officerDisplayName(currentOfficer).toUpperCase();
+    const broadcast = currentOfficer.isDispatch && document.getElementById("commsBroadcast").checked;
+    const targets = broadcast ? CHANNELS.map(c => c.id) : [currentChannel];
+    targets.forEach(ch => {
+      commsMsgs(ch).push({ time: time, who: who, text: text.trim(), voice: !!isVoice, badge: currentOfficer.badge });
+    });
+    saveComms();
+    renderCommsFeed();
+    logActivity((isVoice ? "Sent a voice message" : "Sent a message") + " on " + (broadcast ? "all channels" : currentChannel.toUpperCase()) + ".");
+  }
+
+  document.getElementById("commsSendBtn").addEventListener("click", () => {
+    const input = document.getElementById("commsInput");
+    postCommsMessage(input.value, false);
+    input.value = "";
+  });
+  document.getElementById("commsVoiceBtn").addEventListener("click", () => {
+    const input = document.getElementById("commsInput");
+    if (!input.value.trim()) { input.focus(); return; }
+    postCommsMessage(input.value, true);
+    input.value = "";
+  });
+  document.getElementById("commsInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      postCommsMessage(e.target.value, false);
+      e.target.value = "";
+    }
+  });
+
+  // ================================================================
+  // RUN PLATE
+  // ================================================================
+  const PLATE_FIRST = ["Alex","Jordan","Riley","Casey","Morgan","Drew","Reese","Sam","Taylor","Jamie","Rowan","Skyler","Finley","Emerson","Blair","Devon"];
+  const PLATE_LAST = ["Whitfield","Marsh","Odom","Fenwick","Calloway","Sutter","Marlowe","Hensley","Braddock","Colt","Ashby","Prewitt","Norcross","Vance"];
+  const PLATE_MAKES = ["Corvair Sedan","Halcyon Coupe","Ridgeline Pickup","Voyager Wagon","Falcon Hatchback","Meridian SUV","Sable Van","Continental Sedan","Drifter Motorcycle"];
+  const PLATE_COLORS = ["Black","White","Grey","Teal","Red","Navy Blue","Forest Green","Silver","Rust Orange"];
+  const REG_STATUSES = [
+    { label: "VALID", color: "var(--green)" }, { label: "VALID", color: "var(--green)" }, { label: "VALID", color: "var(--green)" },
+    { label: "EXPIRED", color: "var(--amber)" }, { label: "SUSPENDED", color: "var(--orange)" }, { label: "STOLEN — FLAGGED", color: "var(--red)" }
+  ];
+  function isValidPlate(raw) {
+    const clean = (raw || "").replace(/[^A-Za-z0-9]/g, "");
+    return clean.length >= 4 && clean.length <= 10;
+  }
+  function generateVehicleRecord(plateRaw) {
+    const plate = plateRaw.trim().toUpperCase();
+    const seed = hashString("plate:" + plate.replace(/[^A-Z0-9]/g, ""));
+    const rand = seededRandom(seed);
+
+    // if this exact plate already belongs to someone on file (from a prior name search or
+    // a prior plate run on another device), keep the owner realistic and consistent instead
+    // of generating a brand new random person.
+    const knownPerson = getPersonByPlate(plate);
+
+    const owner = knownPerson ? properCase(knownPerson.name) : (pick(rand, PLATE_FIRST) + " " + pick(rand, PLATE_LAST));
+    const makeModel = knownPerson ? knownPerson.vehicle.replace(/^\d{4}\s+/, "") : pick(rand, PLATE_MAKES);
+    const color = pick(rand, PLATE_COLORS);
+    const year = 2008 + Math.floor(rand() * 18);
+    const reg = pick(rand, REG_STATUSES);
+    const insured = rand() > 0.15;
+    const warrantFlag = rand() > 0.88;
+    const id = "V-" + (100000 + Math.floor(rand() * 899999));
+    const notes = warrantFlag
+      ? "Vehicle is linked to an open warrant on file — approach with caution and request backup before a stop."
+      : (reg.label.indexOf("STOLEN") === 0 || reg.label === "STOLEN — FLAGGED")
+        ? "Plate reported stolen. Do not approach alone — notify dispatch immediately."
+        : "No warrants or flags on file for this vehicle.";
+    const v = { id, plate, owner, makeModel, color, year, reg, insured, notes };
+    if (!knownPerson) registerVehicleOwnerAsPerson(v);
+    return v;
+  }
+  const plateInput = document.getElementById("plateInput");
+  const plateCard = document.getElementById("plateCard");
+  const plateEmpty = document.getElementById("plateEmpty");
+  const plateInvalidMsg = document.getElementById("plateInvalidMsg");
+  function doPlateSearch(raw) {
+    if (!isValidPlate(raw)) {
+      plateInvalidMsg.classList.add("show");
+      plateCard.classList.remove("show");
+      plateEmpty.style.display = "none";
+      return;
+    }
+    plateInvalidMsg.classList.remove("show");
+    const v = generateVehicleRecord(raw);
+    document.getElementById("plateFileId").textContent = "VEHICLE RECORD — " + v.id;
+    document.getElementById("plateAvatar").textContent = v.plate.replace(/[^A-Z0-9]/g, "").slice(0, 2);
+    document.getElementById("platePlateText").textContent = v.plate;
+    document.getElementById("plateMakeModel").textContent = v.year + " " + v.makeModel;
+    const regEl = document.getElementById("plateRegStatus");
+    regEl.textContent = v.reg.label;
+    regEl.style.color = v.reg.color;
+    document.getElementById("plateInsurance").textContent = v.insured ? "ON FILE" : "NOT ON FILE";
+    document.getElementById("plateYear").textContent = v.year;
+    document.getElementById("plateColor").textContent = v.color;
+    document.getElementById("plateOwner").textContent = v.owner;
+    document.getElementById("plateNotes").textContent = v.notes;
+    plateCard.classList.add("show");
+    plateEmpty.style.display = "none";
+    logActivity("Ran plate " + v.plate + " — " + v.reg.label + ".");
+  }
+  plateInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && plateInput.value.trim()) doPlateSearch(plateInput.value);
+  });
+  function renderPlates() {
+    plateCard.classList.remove("show");
+    plateInvalidMsg.classList.remove("show");
+    plateEmpty.style.display = "block";
+    plateInput.value = "";
+  }
+
+  // ================================================================
+  // OFFICER APPLICATIONS (recruitment)
+  // ================================================================
+  const APPLICATIONS_KEY = "crs_applications_v1";
+  function loadApplications() {
+    try { return JSON.parse(localStorage.getItem(APPLICATIONS_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveApplications() {
+    try { localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications)); } catch (e) {}
+    queueSync();
+  }
+  let applications = loadApplications();
+  let appFilter = "PENDING";
+
+  function populateApplyDivisionSelect() {
+    const sel = document.getElementById("applyDivision");
+    if (!sel) return;
+    sel.innerHTML = DIVISIONS.filter(d => !RESTRICTED_DIVISIONS.includes(d))
+      .map(d => '<option>' + d + '</option>').join("");
+  }
+
+  function submitApplication() {
+    const name = document.getElementById("applyName").value.trim();
+    const contact = document.getElementById("applyContact").value.trim();
+    const division = document.getElementById("applyDivision").value;
+    const reason = document.getElementById("applyReason").value.trim();
+    const deniedEl = document.getElementById("applyDeniedMsg");
+    if (!isValidFullName(name) || !contact || !isRealisticText(reason, 5, 15)) {
+      deniedEl.classList.add("show");
+      return;
+    }
+    deniedEl.classList.remove("show");
+    applications.unshift({
+      id: "APP-" + Date.now().toString().slice(-6),
+      name, contact, division, reason,
+      status: "PENDING",
+      submittedAt: new Date().toLocaleString(undefined, { month: "2-digit", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    });
+    saveApplications();
+    document.getElementById("applyName").value = "";
+    document.getElementById("applyContact").value = "";
+    document.getElementById("applyReason").value = "";
+    document.getElementById("applyToast").classList.add("show");
+    setTimeout(() => document.getElementById("applyToast").classList.remove("show"), 3500);
+  }
+
+  function renderApplications() {
+    const pill = document.getElementById("applicationsPill");
+    const pendingCount = applications.filter(a => a.status === "PENDING").length;
+    pill.textContent = pendingCount;
+    pill.classList.toggle("show", pendingCount > 0);
+
+    const list = document.getElementById("appList");
+    const empty = document.getElementById("appEmpty");
+    const filtered = applications.filter(a => appFilter === "ALL" || a.status === appFilter);
+    empty.style.display = filtered.length ? "none" : "block";
+    list.innerHTML = "";
+    const canReview = canReviewApplications(currentOfficer);
+    filtered.forEach(a => {
+      const el = document.createElement("div");
+      el.className = "app-card" + (a.status === "APPROVED" ? " approved" : a.status === "DENIED" ? " denied" : "");
+      let actions = "";
+      if (a.status === "PENDING" && canReview) {
+        actions = '<div class="app-actions">' +
+          '<button class="mini-btn promote" data-act="approve" data-id="' + a.id + '">✔ APPROVE</button>' +
+          '<button class="mini-btn terminate" data-act="deny" data-id="' + a.id + '">✘ DENY</button>' +
+        '</div>';
+      }
+      const issued = a.issuedBadge
+        ? '<div class="issued-box">CREDENTIALS ISSUED — BADGE #' + a.issuedBadge + ' · PASSWORD: ' + a.issuedPassword + '</div>'
+        : "";
+      el.innerHTML =
+        '<div class="app-name">' + properCase(a.name) + ' <span class="clearance-chip">' + a.status + '</span></div>' +
+        '<div class="app-meta">Applying for ' + a.division + ' · Contact: ' + a.contact + ' · Submitted ' + a.submittedAt + '</div>' +
+        '<div class="app-reason">' + a.reason + '</div>' +
+        actions + issued;
+      list.appendChild(el);
+    });
+
+    list.querySelectorAll("[data-act]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (!canReviewApplications(currentOfficer)) return;
+        const a = applications.find(x => x.id === btn.dataset.id);
+        if (!a) return;
+        if (btn.dataset.act === "approve") {
+          const badge = generateNewBadge();
+          const password = badge + "pd";
+          const officer = { name: a.name.toLowerCase(), badge, password, clearance: 1, division: a.division, specialty: "Recruit", status: "ACTIVE" };
+          newOfficers.push(officer);
+          saveNewOfficers();
+          OFFICERS.push(officer);
+          a.status = "APPROVED";
+          a.issuedBadge = badge;
+          a.issuedPassword = password;
+          logActivity("Approved officer application for " + properCase(a.name) + " — badge #" + badge + " issued to " + a.division + ".");
+        } else if (btn.dataset.act === "deny") {
+          a.status = "DENIED";
+          logActivity("Denied officer application for " + properCase(a.name) + ".");
+        }
+        saveApplications();
+        renderApplications();
+        renderRoster();
+        renderCaseLeadOptions();
+      });
+    });
+  }
+
+  document.getElementById("appFilterBar").querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      appFilter = btn.dataset.filter;
+      document.getElementById("appFilterBar").querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b === btn));
+      renderApplications();
+    });
+  });
+
+  const showApplyLink = document.getElementById("showApplyLink");
+  const loginBoxMain = document.querySelector("#loginScreen .login-box");
+  const applyBox = document.getElementById("applyBox");
+  showApplyLink.addEventListener("click", () => {
+    populateApplyDivisionSelect();
+    loginBoxMain.style.display = "none";
+    applyBox.style.display = "block";
+  });
+  document.getElementById("backToLoginBtn").addEventListener("click", () => {
+    applyBox.style.display = "none";
+    loginBoxMain.style.display = "block";
+  });
+  document.getElementById("submitApplyBtn").addEventListener("click", submitApplication);
+
+  // ================================================================
+  // TRAINING DIVISION — division exams + Field Training Officers
+  // ================================================================
+  const EXAMS_KEY = "crs_exams_v1";
+  function loadExams() {
+    try { return JSON.parse(localStorage.getItem(EXAMS_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveExams() {
+    try { localStorage.setItem(EXAMS_KEY, JSON.stringify(examsByDivision)); } catch (e) {}
+    queueSync();
+  }
+  let examsByDivision = loadExams();
+
+  const EXAM_RESULTS_KEY = "crs_exam_results_v1";
+  function loadExamResults() {
+    try { return JSON.parse(localStorage.getItem(EXAM_RESULTS_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveExamResults() {
+    try { localStorage.setItem(EXAM_RESULTS_KEY, JSON.stringify(examResults)); } catch (e) {}
+    queueSync();
+  }
+  let examResults = loadExamResults();
+  let examBuilderQuestions = [];
+  let examQCounter = 0;
+
+  function addExamQuestionRow() {
+    const qid = "q" + (examQCounter++);
+    examBuilderQuestions.push(qid);
+    const wrap = document.getElementById("examQuestionsBuilder");
+    const block = document.createElement("div");
+    block.className = "exam-q-block";
+    block.id = "block-" + qid;
+    block.innerHTML =
+      '<div class="field"><label>QUESTION</label><input type="text" class="exam-q-text" placeholder="Question text" autocomplete="off" /></div>' +
+      [0, 1, 2, 3].map(i =>
+        '<div class="exam-choice-row">' +
+          '<input type="radio" name="correct-' + qid + '" class="exam-correct" value="' + i + '" ' + (i === 0 ? "checked" : "") + ' />' +
+          '<input type="text" class="exam-choice-text" placeholder="Choice ' + (i + 1) + '" autocomplete="off" />' +
+        '</div>'
+      ).join("") +
+      '<button type="button" class="remove-q-btn" data-qid="' + qid + '">✘ REMOVE QUESTION</button>';
+    wrap.appendChild(block);
+    block.querySelector(".remove-q-btn").addEventListener("click", () => {
+      block.remove();
+      examBuilderQuestions = examBuilderQuestions.filter(q => q !== qid);
+    });
+  }
+  document.getElementById("addExamQBtn").addEventListener("click", addExamQuestionRow);
+
+  function publishExam() {
+    if (!currentOfficer || !canCreateExamFor(currentOfficer, currentOfficer.division)) return;
+    const title = document.getElementById("examTitleInput").value.trim();
+    const deniedEl = document.getElementById("examDeniedMsg");
+    const blocks = document.querySelectorAll("#examQuestionsBuilder .exam-q-block");
+    const questions = [];
+    let valid = title.length >= 3 && blocks.length > 0;
+    blocks.forEach(block => {
+      const qText = block.querySelector(".exam-q-text").value.trim();
+      const choiceInputs = block.querySelectorAll(".exam-choice-text");
+      const choices = Array.from(choiceInputs).map(i => i.value.trim());
+      const correctInput = block.querySelector(".exam-correct:checked");
+      if (!qText || choices.some(c => !c) || !correctInput) { valid = false; return; }
+      questions.push({ q: qText, choices, correct: parseInt(correctInput.value, 10) });
+    });
+    if (!valid || !questions.length) {
+      deniedEl.classList.add("show");
+      return;
+    }
+    deniedEl.classList.remove("show");
+    const division = currentOfficer.division;
+    examsByDivision[division] = examsByDivision[division] || [];
+    examsByDivision[division].push({
+      id: "EX-" + Date.now().toString().slice(-6),
+      title, questions,
+      createdBy: officerDisplayName(currentOfficer),
+      createdAt: new Date().toLocaleDateString()
+    });
+    saveExams();
+    logActivity("Published a new division exam: \"" + title + "\" for " + division + ".");
+    document.getElementById("examTitleInput").value = "";
+    document.getElementById("examQuestionsBuilder").innerHTML = "";
+    examBuilderQuestions = [];
+    const toast = document.getElementById("examToast");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 3000);
+    renderTraining();
+  }
+  document.getElementById("publishExamBtn").addEventListener("click", publishExam);
+
+  function takeExam(division, examId) {
+    const exam = (examsByDivision[division] || []).find(e => e.id === examId);
+    if (!exam || !currentOfficer) return;
+    const card = document.getElementById("exam-card-" + examId);
+    if (!card) return;
+    const answered = [];
+    exam.questions.forEach((q, qi) => {
+      const selected = card.querySelector('input[name="take-' + examId + '-' + qi + '"]:checked');
+      answered.push(selected ? parseInt(selected.value, 10) : -1);
+    });
+    let score = 0;
+    exam.questions.forEach((q, qi) => { if (answered[qi] === q.correct) score++; });
+    examResults[examId] = examResults[examId] || [];
+    examResults[examId].push({
+      badge: currentOfficer.badge, name: officerDisplayName(currentOfficer),
+      score, total: exam.questions.length,
+      at: new Date().toLocaleDateString()
+    });
+    saveExamResults();
+    logActivity("Completed exam \"" + exam.title + "\" — scored " + score + "/" + exam.questions.length + ".");
+    renderTraining();
+  }
+
+  function renderTraining() {
+    if (!currentOfficer) return;
+    const division = currentOfficer.division;
+    document.getElementById("examDivisionLabel").textContent = division;
+
+    const createSection = document.getElementById("examCreateSection");
+    createSection.style.display = canCreateExamFor(currentOfficer, division) ? "block" : "none";
+    document.getElementById("examQuestionsBuilder").innerHTML = "";
+    examBuilderQuestions = [];
+
+    const examList = document.getElementById("examList");
+    const myExams = examsByDivision[division] || [];
+    if (!myExams.length) {
+      examList.innerHTML = '<div class="empty-state">No exams published for ' + division + ' yet.</div>';
+    } else {
+      examList.innerHTML = "";
+      myExams.forEach(exam => {
+        const el = document.createElement("div");
+        el.className = "exam-card";
+        el.id = "exam-card-" + exam.id;
+        const myResults = (examResults[exam.id] || []).filter(r => r.badge === currentOfficer.badge);
+        const lastResult = myResults.length ? myResults[myResults.length - 1] : null;
+        el.innerHTML =
+          '<div class="exam-card-title">' + exam.title + '</div>' +
+          '<div class="exam-card-meta">Authored by ' + exam.createdBy + ' · ' + exam.questions.length + ' question(s) · ' + exam.createdAt + '</div>' +
+          exam.questions.map((q, qi) =>
+            '<div class="exam-q-block">' +
+              '<div style="font-size:12px;color:var(--text-bright);margin-bottom:8px;">' + (qi + 1) + '. ' + q.q + '</div>' +
+              q.choices.map((c, ci) =>
+                '<div class="exam-choice-row"><input type="radio" name="take-' + exam.id + '-' + qi + '" value="' + ci + '" /><label style="font-size:12px;color:#B8C4D2;">' + c + '</label></div>'
+              ).join("") +
+            '</div>'
+          ).join("") +
+          '<button class="login-btn secondary" data-take="' + exam.id + '" style="max-width:180px;">SUBMIT ANSWERS</button>' +
+          (lastResult ? '<div class="exam-score">LAST SCORE: ' + lastResult.score + '/' + lastResult.total + '</div>' : "");
+        examList.appendChild(el);
+      });
+      examList.querySelectorAll("[data-take]").forEach(btn => {
+        btn.addEventListener("click", () => takeExam(division, btn.dataset.take));
+      });
+    }
+
+    const ftoList = document.getElementById("ftoList");
+    const ftos = OFFICERS.filter(o => o.fto && o.status !== "TERMINATED");
+    if (!ftos.length) {
+      ftoList.innerHTML = '<div class="empty-state">No Field Training Officers designated yet.</div>';
+    } else {
+      ftoList.innerHTML = "";
+      ftos.forEach(o => {
+        const el = document.createElement("div");
+        el.className = "agent-card";
+        el.innerHTML =
+          '<div class="agent-avatar">' + initials(officerDisplayName(o)) + '</div>' +
+          '<div>' +
+            '<div class="agent-info-name">Officer ' + officerDisplayName(o) + ' <span class="tag-chip">🎓 FTO</span></div>' +
+            '<div class="agent-info-role">' + rankTitle(o.clearance) + ' · ' + o.division + '</div>' +
+          '</div>';
+        ftoList.appendChild(el);
+      });
+    }
+  }
+
+  // ================================================================
+  // COMMAND PANEL — Internal Affairs & Office of the Chief
+  // ================================================================
+  const IA_INVESTIGATIONS_KEY = "crs_ia_investigations_v1";
+  function loadInvestigations() {
+    try { return JSON.parse(localStorage.getItem(IA_INVESTIGATIONS_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveInvestigations() {
+    try { localStorage.setItem(IA_INVESTIGATIONS_KEY, JSON.stringify(iaInvestigations)); } catch (e) {}
+    queueSync();
+  }
+  let iaInvestigations = loadInvestigations();
+
+  function renderCommandPanel() {
+    if (!currentOfficer || !canAccessCommandTools(currentOfficer)) return;
+
+    document.getElementById("broadcastHint").style.display = canBroadcastOrder(currentOfficer) ? "none" : "block";
+    document.getElementById("broadcastBtn").disabled = !canBroadcastOrder(currentOfficer);
+
+    const reassignOfficerSel = document.getElementById("reassignOfficerSelect");
+    reassignOfficerSel.innerHTML = OFFICERS.filter(o => o.status !== "TERMINATED")
+      .map(o => '<option value="' + o.badge + '">' + officerDisplayName(o) + " — " + o.division + '</option>').join("");
+    const reassignDivisionSel = document.getElementById("reassignDivisionSelect");
+    reassignDivisionSel.innerHTML = DIVISIONS.map(d => '<option>' + d + '</option>').join("");
+
+    const suspendList = document.getElementById("suspendList");
+    suspendList.innerHTML = "";
+    OFFICERS.filter(o => o.status !== "TERMINATED").forEach(o => {
+      if (!canSuspendOfficer(currentOfficer, o) && o.status !== "SUSPENDED") return;
+      const el = document.createElement("div");
+      el.className = "agent-card";
+      const suspended = o.status === "SUSPENDED";
+      el.innerHTML =
+        '<div class="agent-avatar">' + initials(officerDisplayName(o)) + '</div>' +
+        '<div>' +
+          '<div class="agent-info-name">Officer ' + officerDisplayName(o) + '</div>' +
+          '<div class="agent-info-role">' + rankTitle(o.clearance) + ' · ' + o.division + '</div>' +
+          '<div class="agent-info-meta">Badge #' + o.badge + (suspended ? ' · <span class="term-tag">SUSPENDED</span>' : '') + '</div>' +
+        '</div>' +
+        '<div class="agent-right">' +
+          '<button class="mini-btn ' + (suspended ? "reinstate" : "terminate") + '" data-act="' + (suspended ? "lift" : "suspend") + '" data-badge="' + o.badge + '">' + (suspended ? "↺ LIFT SUSPENSION" : "⛔ SUSPEND") + '</button>' +
+        '</div>';
+      suspendList.appendChild(el);
+    });
+    suspendList.querySelectorAll("[data-act]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const target = OFFICERS.find(o => o.badge === btn.dataset.badge);
+        if (!target) return;
+        if (btn.dataset.act === "suspend") {
+          if (!canSuspendOfficer(currentOfficer, target)) return;
+          target.status = "SUSPENDED";
+          persistOfficer(target);
+          logActivity("Suspended Officer " + officerDisplayName(target) + " pending Internal Affairs review.");
+        } else if (btn.dataset.act === "lift") {
+          if (!canAccessCommandTools(currentOfficer)) return;
+          target.status = "ACTIVE";
+          persistOfficer(target);
+          logActivity("Lifted the suspension on Officer " + officerDisplayName(target) + ".");
+        }
+        renderCommandPanel();
+        renderRoster();
+      });
+    });
+
+    const iaTargetSel = document.getElementById("iaTargetSelect");
+    iaTargetSel.innerHTML = OFFICERS.filter(o => o.status !== "TERMINATED")
+      .map(o => '<option value="' + o.badge + '">' + officerDisplayName(o) + " — " + o.division + '</option>').join("");
+
+    const iaList = document.getElementById("iaList");
+    if (!iaInvestigations.length) {
+      iaList.innerHTML = '<div class="empty-state">No open or past investigations on file.</div>';
+    } else {
+      iaList.innerHTML = "";
+      iaInvestigations.forEach(inv => {
+        const el = document.createElement("div");
+        el.className = "app-card" + (inv.status === "CLOSED" ? " denied" : "");
+        el.innerHTML =
+          '<div class="app-name">' + inv.subjectName + ' <span class="clearance-chip">' + inv.status + '</span></div>' +
+          '<div class="app-meta">Opened by ' + inv.openedBy + ' · ' + inv.openedAt + '</div>' +
+          '<div class="app-reason">' + inv.notes + '</div>' +
+          (inv.status === "OPEN" ? '<div class="app-actions"><button class="mini-btn" data-close="' + inv.id + '">CLOSE INVESTIGATION</button></div>' : "");
+        iaList.appendChild(el);
+      });
+      iaList.querySelectorAll("[data-close]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (!canOpenIAInvestigation(currentOfficer)) return;
+          const inv = iaInvestigations.find(i => i.id === btn.dataset.close);
+          if (!inv) return;
+          inv.status = "CLOSED";
+          saveInvestigations();
+          logActivity("Closed the Internal Affairs investigation into " + inv.subjectName + ".");
+          renderCommandPanel();
+        });
+      });
+    }
+  }
+
+  document.getElementById("broadcastBtn").addEventListener("click", () => {
+    if (!canBroadcastOrder(currentOfficer)) return;
+    const input = document.getElementById("broadcastInput");
+    const text = input.value.trim();
+    if (!text) return;
+    logActivity("DEPARTMENT ORDER: " + text);
+    document.getElementById("liveTickerText").textContent = "📢 DEPARTMENT ORDER — " + text;
+    input.value = "";
+  });
+
+  document.getElementById("reassignBtn").addEventListener("click", () => {
+    if (!canReassignAnyDivision(currentOfficer)) return;
+    const badge = document.getElementById("reassignOfficerSelect").value;
+    const division = document.getElementById("reassignDivisionSelect").value;
+    const target = OFFICERS.find(o => o.badge === badge);
+    if (!target) return;
+    target.division = division;
+    persistOfficer(target);
+    logActivity("Reassigned Officer " + officerDisplayName(target) + " to " + division + " by command decision.");
+    renderCommandPanel();
+    renderRoster();
+    renderAnalytics();
+    if (target.badge === currentOfficer.badge) refreshTabVisibility();
+  });
+
+  document.getElementById("openIaBtn").addEventListener("click", () => {
+    if (!canOpenIAInvestigation(currentOfficer)) return;
+    const badge = document.getElementById("iaTargetSelect").value;
+    const notes = document.getElementById("iaNotesInput").value.trim();
+    const target = OFFICERS.find(o => o.badge === badge);
+    const deniedEl = document.getElementById("iaDeniedMsg");
+    if (!target || !isRealisticText(notes, 5, 15)) {
+      deniedEl.classList.add("show");
+      return;
+    }
+    deniedEl.classList.remove("show");
+    iaInvestigations.unshift({
+      id: "IA-" + Date.now().toString().slice(-6),
+      subjectBadge: target.badge,
+      subjectName: officerDisplayName(target),
+      notes,
+      status: "OPEN",
+      openedBy: officerDisplayName(currentOfficer),
+      openedAt: new Date().toLocaleDateString()
+    });
+    saveInvestigations();
+    logActivity("Opened an Internal Affairs investigation into Officer " + officerDisplayName(target) + ".");
+    document.getElementById("iaNotesInput").value = "";
+    renderCommandPanel();
+  });
+
+  // ---------- tab visibility gating ----------
+  function refreshTabVisibility() {
+    const applicationsBtn = document.getElementById("tabApplicationsBtn");
+    const commandBtn = document.getElementById("tabCommandBtn");
+    applicationsBtn.style.display = canReviewApplications(currentOfficer) ? "" : "none";
+    commandBtn.style.display = canAccessCommandTools(currentOfficer) ? "" : "none";
+    const pill = document.getElementById("applicationsPill");
+    const pendingCount = applications.filter(a => a.status === "PENDING").length;
+    pill.textContent = pendingCount;
+    pill.classList.toggle("show", pendingCount > 0 && canReviewApplications(currentOfficer));
+  }
+
+  // ---------- tab switching ----------
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  function switchTab(panelId) {
+    if (panelId === "applicationsPanel" && !canReviewApplications(currentOfficer)) panelId = "searchPanel";
+    if (panelId === "commandPanel" && !canAccessCommandTools(currentOfficer)) panelId = "searchPanel";
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === panelId));
+    tabButtons.forEach(b => b.classList.toggle("active", b.dataset.tab === panelId));
+    if (panelId === "dashboardPanel") renderDashboard();
+    if (panelId === "analyticsPanel") renderAnalytics();
+    if (panelId === "agentsPanel") renderRoster();
+    if (panelId === "logPanel") renderActivityLog();
+    if (panelId === "commsPanel") { renderCommsChannelBar(); renderCommsFeed(); populateVoiceSelect(); }
+    if (panelId === "platesPanel") renderPlates();
+    if (panelId === "trainingPanel") renderTraining();
+    if (panelId === "applicationsPanel") renderApplications();
+    if (panelId === "commandPanel") renderCommandPanel();
+  }
+  tabButtons.forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+
+  // ---------- live clock ----------
+  const clockEl = document.getElementById("clock");
+  function updateClock() {
+    const now = new Date();
+    const date = now.toLocaleDateString(undefined, { year: "numeric", month: "2-digit", day: "2-digit" });
+    const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    clockEl.textContent = date + "  " + time;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ---------- login flow ----------
+  const loginScreen = document.getElementById("loginScreen");
+  const appScreen = document.getElementById("appScreen");
+  const goodbyeScreen = document.getElementById("goodbyeScreen");
+  const agentNameInput = document.getElementById("agentName");
+  const badgeIdInput = document.getElementById("badgeId");
+  const loginPasswordInput = document.getElementById("loginPassword");
+  const loginBtn = document.getElementById("loginBtn");
+  const agentDisplay = document.getElementById("agentDisplay");
+  const agentRankLine = document.getElementById("agentRankLine");
+  const goodbyeAgent = document.getElementById("goodbyeAgent");
+  const goodbyeMotto = document.getElementById("goodbyeMotto");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const deniedMsg = document.getElementById("deniedMsg");
+  let agentDisplayName = "";
+
+  const MOTTOS = [
+    "TRUST NO FILE. VERIFY EVERYTHING.",
+    "IN SHADOWS, WE SEE CLEARLY.",
+    "THE TRUTH IS ALWAYS ON RECORD.",
+    "VIGILANCE NEVER SLEEPS.",
+    "EYES OPEN. CASE CLOSED.",
+    "EVERY RECORD TELLS A STORY.",
+    "TO PROTECT AND TO SERVE."
+  ];
+
+  badgeIdInput.addEventListener("input", () => {
+    badgeIdInput.value = badgeIdInput.value.replace(/[^0-9]/g, "");
+  });
+
+  function doLogin() {
+    const name = agentNameInput.value.trim().toLowerCase();
+    const badge = badgeIdInput.value.trim();
+    const password = loginPasswordInput.value;
+    const match = OFFICERS.find(o => nameKey(o.name) === nameKey(name) && o.badge === badge);
+
+    if (!match || match.password !== password) {
+      deniedMsg.textContent = "ACCESS DENIED — CREDENTIALS NOT RECOGNIZED";
+      deniedMsg.classList.add("show");
+      return;
+    }
+    if (match.status === "TERMINATED") {
+      deniedMsg.textContent = "ACCESS REVOKED — THIS BADGE HAS BEEN TERMINATED";
+      deniedMsg.classList.add("show");
+      return;
+    }
+    if (match.status === "SUSPENDED") {
+      deniedMsg.textContent = "ACCESS SUSPENDED — PENDING INTERNAL AFFAIRS REVIEW";
+      deniedMsg.classList.add("show");
+      return;
+    }
+    deniedMsg.classList.remove("show");
+
+    currentOfficer = match;
+    agentDisplayName = officerDisplayName(match);
+    agentDisplay.textContent = agentDisplayName;
+    agentRankLine.textContent = rankTitle(match.clearance) + " · " + match.division;
+    loginScreen.style.display = "none";
+    appScreen.style.display = "block";
+    refreshTabVisibility();
+    switchTab("searchPanel");
+    searchInput.focus();
+    logActivity("Signed in.");
+    startLiveFeed();
+  }
+
+  loginBtn.addEventListener("click", doLogin);
+  agentNameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+  badgeIdInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+  loginPasswordInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+
+  let mottoTimer = null;
+  function typeMotto(text) {
+    goodbyeMotto.textContent = "";
+    let i = 0;
+    clearInterval(mottoTimer);
+    mottoTimer = setInterval(() => {
+      goodbyeMotto.textContent = text.slice(0, i + 1);
+      i++;
+      if (i >= text.length) clearInterval(mottoTimer);
+    }, 55);
+  }
+
+  function returnToLogin() {
+    goodbyeScreen.classList.remove("show");
+    appScreen.style.display = "none";
+    loginScreen.style.display = "flex";
+    agentNameInput.value = "";
+    badgeIdInput.value = "";
+    loginPasswordInput.value = "";
+    searchInput.value = "";
+    card.classList.remove("show");
+    emptyState.style.display = "block";
+    deniedMsg.classList.remove("show");
+    invalidMsg.classList.remove("show");
+    history = [];
+    searchHistoryEl.innerHTML = "";
+    bolos = [];
+    currentPerson = null;
+    currentOfficer = null;
+    logFilter = "MINE";
+    document.getElementById("logFilterBar").querySelectorAll(".filter-btn").forEach(b => b.classList.toggle("active", b.dataset.filter === "MINE"));
+    currentChannel = "dispatch";
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    stopLiveFeed();
+    renderBolos();
+    renderActivityLog();
+    refreshTabVisibility();
+    applyBox.style.display = "none";
+    loginBoxMain.style.display = "block";
+    switchTab("searchPanel");
+  }
+
+  let goodbyeTimer = null;
+  logoutBtn.addEventListener("click", () => {
+    logActivity("Signed out.");
+    appScreen.style.display = "none";
+    goodbyeAgent.textContent = agentDisplayName;
+    goodbyeScreen.classList.add("show");
+    typeMotto(pick(seededRandom(Date.now()), MOTTOS));
+    clearTimeout(goodbyeTimer);
+    goodbyeTimer = setTimeout(returnToLogin, 5000);
+  });
+  goodbyeScreen.addEventListener("click", () => {
+    clearTimeout(goodbyeTimer);
+    returnToLogin();
+  });
+
+  // ================================================================
+  // LIVE CROSS-DEVICE SYNC
+  // Every collection above (roster overrides, applications, activity log, comms,
+  // exams, IA investigations, and the person/plate registry) is written to a small
+  // shared cloud bucket (kvdb.io — no account needed) any time it changes, and this
+  // device polls that same bucket every few seconds so other signed-in devices pick
+  // up the change. Tabs on the SAME device sync instantly via BroadcastChannel.
+  // ================================================================
+  const SYNC_BUCKET_STORAGE_KEY = "crs_sync_bucket_id_v1";
+  let syncBucketId = localStorage.getItem(SYNC_BUCKET_STORAGE_KEY) || "";
+  let syncStatus = "OFFLINE";
+  let syncPushTimer = null;
+  let syncPollTimer = null;
+  let syncPulling = false;
+  let lastPulledUpdatedAt = 0;
+  let lastSyncError = "";
+
+  let syncChannel = null;
+  try { syncChannel = new BroadcastChannel("crs_live_sync_v1"); } catch (e) { syncChannel = null; }
+  if (syncChannel) {
+    syncChannel.onmessage = (ev) => {
+      if (ev && ev.data && ev.data.type === "crs-state") mergeRemoteState(ev.data.state, true);
+    };
+  }
+
+  function collectSyncState() {
+    return {
+      officerOverrides, newOfficers,
+      activityLog: activityLog.slice(0, 500),
+      commsState, applications, examsByDivision, examResults, iaInvestigations,
+      personRegistry, plateRegistry,
+      updatedAt: Date.now()
+    };
+  }
+
+  function setSyncStatus(status) {
+    syncStatus = status;
+    const dot = document.getElementById("syncDot");
+    const label = document.getElementById("syncStatusText");
+    if (!dot || !label) return;
+    dot.className = "sync-dot";
+    if (status === "LIVE") { dot.classList.add("live"); label.textContent = "LIVE SYNC"; }
+    else if (status === "CONNECTING") { dot.classList.add("connecting"); label.textContent = "SYNCING…"; }
+    else if (status === "ERROR") { dot.classList.add("error"); label.textContent = "SYNC ERROR"; }
+    else { label.textContent = "SET UP SYNC"; }
+    updateSyncPanel();
+  }
+
+  function updateSyncPanel() {
+    const input = document.getElementById("syncCodeInput");
+    const status = document.getElementById("syncPanelStatus");
+    if (input && document.activeElement !== input) input.value = syncBucketId;
+    if (!status) return;
+    status.className = "sync-panel-status";
+    if (syncStatus === "LIVE") {
+      status.textContent = syncBucketId ? "Connected — this device is live-synced." : "Not connected yet.";
+      status.classList.add("ok");
+    } else if (syncStatus === "CONNECTING") {
+      status.textContent = "Connecting…";
+    } else if (syncStatus === "ERROR") {
+      status.textContent = "Couldn't reach the sync server" + (lastSyncError ? " (" + lastSyncError + ")" : "") + ". Working offline on this device for now — it'll retry automatically. Full detail in the browser console (F12).";
+      status.classList.add("err");
+    } else {
+      status.textContent = "Not connected yet.";
+    }
+  }
+
+  function announceSyncEvent(text) {
+    const el = document.getElementById("liveTickerText");
+    if (el) el.textContent = text;
+  }
+
+  function queueSync() {
+    if (syncChannel) {
+      try { syncChannel.postMessage({ type: "crs-state", state: collectSyncState() }); } catch (e) {}
+    }
+    clearTimeout(syncPushTimer);
+    syncPushTimer = setTimeout(pushSyncNow, 800);
+  }
+
+  async function pushSyncNow() {
+    if (!syncBucketId) return;
+    try {
+      setSyncStatus("CONNECTING");
+      const body = JSON.stringify(collectSyncState());
+      const res = await fetch("https://kvdb.io/" + syncBucketId + "/state", { method: "POST", body });
+      if (!res.ok) throw new Error("push HTTP " + res.status);
+      setSyncStatus("LIVE");
+    } catch (e) {
+      lastSyncError = (e && e.message) ? e.message : "network error";
+      console.warn("CRS sync push failed:", e);
+      setSyncStatus("ERROR");
+    }
+  }
+
+  async function pullSyncNow() {
+    if (!syncBucketId || syncPulling) return;
+    syncPulling = true;
+    try {
+      const res = await fetch("https://kvdb.io/" + syncBucketId + "/state", { cache: "no-store" });
+      if (res.status === 404) {
+        setSyncStatus("LIVE");
+      } else if (!res.ok) {
+        throw new Error("pull HTTP " + res.status);
+      } else {
+        const text = await res.text();
+        if (text) mergeRemoteState(JSON.parse(text), false);
+        setSyncStatus("LIVE");
+      }
+    } catch (e) {
+      lastSyncError = (e && e.message) ? e.message : "network error";
+      console.warn("CRS sync pull failed:", e);
+      setSyncStatus("ERROR");
+    }
+    syncPulling = false;
+  }
+
+  function mergeRemoteState(remote, fromSameDevice) {
+    if (!remote || typeof remote !== "object") return;
+    if (!fromSameDevice) {
+      if (remote.updatedAt && remote.updatedAt <= lastPulledUpdatedAt) return;
+      if (remote.updatedAt) lastPulledUpdatedAt = Math.max(lastPulledUpdatedAt, remote.updatedAt);
+    }
+
+    const prevOverrides = officerOverrides;
+    const prevApplications = applications;
+
+    if (remote.officerOverrides) officerOverrides = remote.officerOverrides;
+    if (remote.newOfficers) newOfficers = remote.newOfficers;
+    if (remote.activityLog) activityLog = remote.activityLog;
+    if (remote.commsState) commsState = remote.commsState;
+    if (remote.applications) applications = remote.applications;
+    if (remote.examsByDivision) examsByDivision = remote.examsByDivision;
+    if (remote.examResults) examResults = remote.examResults;
+    if (remote.iaInvestigations) iaInvestigations = remote.iaInvestigations;
+    if (remote.personRegistry) personRegistry = remote.personRegistry;
+    if (remote.plateRegistry) plateRegistry = remote.plateRegistry;
+
+    try {
+      localStorage.setItem(OFFICER_STATE_KEY, JSON.stringify(officerOverrides));
+      localStorage.setItem(NEW_OFFICERS_KEY, JSON.stringify(newOfficers));
+      localStorage.setItem(LOG_KEY, JSON.stringify(activityLog));
+      localStorage.setItem(COMMS_STATE_KEY, JSON.stringify(commsState));
+      localStorage.setItem(APPLICATIONS_KEY, JSON.stringify(applications));
+      localStorage.setItem(EXAMS_KEY, JSON.stringify(examsByDivision));
+      localStorage.setItem(EXAM_RESULTS_KEY, JSON.stringify(examResults));
+      localStorage.setItem(IA_INVESTIGATIONS_KEY, JSON.stringify(iaInvestigations));
+      localStorage.setItem(PERSON_REGISTRY_KEY, JSON.stringify(personRegistry));
+      localStorage.setItem(PLATE_REGISTRY_KEY, JSON.stringify(plateRegistry));
+    } catch (e) {}
+
+    rebuildOfficers();
+
+    if (currentOfficer) {
+      const wasClearance = currentOfficer.clearance;
+      const refreshed = OFFICERS.find(o => o.badge === currentOfficer.badge);
+      if (refreshed) {
+        currentOfficer = refreshed;
+        if (agentDisplay) agentDisplay.textContent = officerDisplayName(currentOfficer);
+        if (agentRankLine) agentRankLine.textContent = rankTitle(currentOfficer.clearance) + " · " + currentOfficer.division;
+        if (refreshed.clearance !== wasClearance) {
+          announceSyncEvent(refreshed.clearance > wasClearance
+            ? "🎉 SYNC — You've been promoted to " + rankTitle(refreshed.clearance) + "!"
+            : "🔄 SYNC — Your clearance is now " + rankTitle(refreshed.clearance) + ".");
+        }
+      }
+      refreshTabVisibility();
+    }
+
+    try {
+      Object.keys(officerOverrides).forEach(badge => {
+        const before = prevOverrides[badge];
+        const after = officerOverrides[badge];
+        if (!after || after.clearance === undefined) return;
+        if (before && before.clearance === after.clearance) return;
+        if (currentOfficer && badge === currentOfficer.badge) return; // already announced above
+        const o = OFFICERS.find(x => x.badge === badge);
+        if (!o) return;
+        const went = !before || after.clearance > before.clearance ? "promoted to" : "moved to";
+        announceSyncEvent("🔄 SYNC — Officer " + officerDisplayName(o) + " " + went + " " + rankTitle(after.clearance) + ".");
+      });
+      const prevIds = {};
+      prevApplications.forEach(a => { prevIds[a.id] = true; });
+      applications.forEach(a => {
+        if (!prevIds[a.id] && a.status === "PENDING") {
+          announceSyncEvent("🔄 SYNC — New application received from " + properCase(a.name) + ".");
+        }
+      });
+    } catch (e) {}
+
+    if (appScreen && appScreen.style.display === "block") {
+      const activePanel = document.querySelector(".tab-panel.active");
+      if (activePanel) {
+        if (activePanel.id === "dashboardPanel") renderDashboard();
+        else if (activePanel.id === "analyticsPanel") renderAnalytics();
+        else if (activePanel.id === "agentsPanel") renderRoster();
+        else if (activePanel.id === "logPanel") renderActivityLog();
+        else if (activePanel.id === "commsPanel") renderCommsFeed();
+        else if (activePanel.id === "applicationsPanel") renderApplications();
+        else if (activePanel.id === "commandPanel") renderCommandPanel();
+      }
+      renderBolos();
+    }
+  }
+
+  async function ensureBucket() {
+    if (syncBucketId) return syncBucketId;
+    try {
+      setSyncStatus("CONNECTING");
+      const res = await fetch("https://kvdb.io/", {
+        method: "POST",
+        body: new URLSearchParams({ email: "officer" + Math.floor(Math.random() * 999999) + "@centralrecords.local" })
+      });
+      const raw = (await res.text()).trim();
+      if (res.ok && raw && /^[A-Za-z0-9_-]{4,64}$/.test(raw)) {
+        syncBucketId = raw;
+        localStorage.setItem(SYNC_BUCKET_STORAGE_KEY, raw);
+        return raw;
+      }
+      throw new Error("bucket create HTTP " + res.status + (raw ? ": " + raw.slice(0, 80) : ""));
+    } catch (e) {
+      lastSyncError = (e && e.message) ? e.message : "network error";
+      console.warn("CRS sync bucket creation failed:", e);
+      setSyncStatus("ERROR");
+      return "";
+    }
+  }
+
+  async function initSync() {
+    if (!syncBucketId) {
+      await ensureBucket();
+      if (syncBucketId) pushSyncNow();
+    } else {
+      setSyncStatus("CONNECTING");
+      await pullSyncNow();
+    }
+    updateSyncPanel();
+    clearInterval(syncPollTimer);
+    syncPollTimer = setInterval(pullSyncNow, 7000);
+  }
+
+  function connectToBucket(code) {
+    const clean = (code || "").trim();
+    if (!clean || clean === syncBucketId) return;
+    syncBucketId = clean;
+    localStorage.setItem(SYNC_BUCKET_STORAGE_KEY, clean);
+    lastPulledUpdatedAt = 0;
+    setSyncStatus("CONNECTING");
+    pullSyncNow();
+  }
+
+  const syncPill = document.getElementById("syncPill");
+  const syncPanel = document.getElementById("syncPanel");
+  if (syncPill && syncPanel) {
+    syncPill.addEventListener("click", () => {
+      syncPanel.classList.toggle("show");
+      updateSyncPanel();
+    });
+    document.addEventListener("click", (e) => {
+      if (!syncPanel.classList.contains("show")) return;
+      if (syncPanel.contains(e.target) || syncPill.contains(e.target)) return;
+      syncPanel.classList.remove("show");
+    });
+  }
+  const syncCodeConnectBtn = document.getElementById("syncCodeConnectBtn");
+  if (syncCodeConnectBtn) {
+    syncCodeConnectBtn.addEventListener("click", () => {
+      const input = document.getElementById("syncCodeInput");
+      if (input) connectToBucket(input.value);
+    });
+  }
+  const syncCodeCopyBtn = document.getElementById("syncCodeCopyBtn");
+  if (syncCodeCopyBtn) {
+    syncCodeCopyBtn.addEventListener("click", () => {
+      const input = document.getElementById("syncCodeInput");
+      if (!input || !input.value) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(() => {
+          syncCodeCopyBtn.textContent = "COPIED";
+          setTimeout(() => { syncCodeCopyBtn.textContent = "COPY"; }, 1500);
+        }).catch(() => { input.select(); });
+      } else {
+        input.select();
+        document.execCommand("copy");
+      }
+    });
+  }
+
+  setSyncStatus("OFFLINE");
+  initSync();
+
+  renderBolos();
+</script>
+
+</body>
+</html>
